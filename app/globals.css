@@ -1,0 +1,141 @@
+@import "tailwindcss";
+
+/* ----------------------------------------------------------------------------
+   Versefold brand tokens
+   Warm, restrained palette. Hunter green is an accent, never a loud primary.
+---------------------------------------------------------------------------- */
+@theme {
+  --color-ink: #111820;
+  --color-hunter: #1f3a2e;
+  --color-green: #244732;
+  --color-evergreen: #173526;
+  --color-ivory: #faf8f1;
+  --color-ivory-deep: #f7f4ea;
+  --color-parchment: #efe8d8;
+  --color-stone: #8c8678;
+  --color-paper: #ffffff;
+
+  --font-serif: var(--font-serif), "Cormorant Garamond", Georgia, serif;
+  --font-sans: var(--font-sans), "Inter", system-ui, -apple-system, sans-serif;
+
+  --shadow-soft: 0 1px 2px rgba(17, 24, 32, 0.04),
+    0 12px 32px -16px rgba(17, 24, 32, 0.18);
+  --shadow-lift: 0 2px 6px rgba(17, 24, 32, 0.05),
+    0 28px 60px -28px rgba(17, 24, 32, 0.28);
+
+  --radius-card: 1.25rem;
+}
+
+/* ----------------------------------------------------------------------------
+   Base
+---------------------------------------------------------------------------- */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-ivory);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    line-height: 1.08;
+    letter-spacing: -0.01em;
+    color: var(--color-ink);
+  }
+
+  ::selection {
+    background-color: color-mix(in srgb, var(--color-hunter) 22%, transparent);
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-hunter);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+}
+
+/* ----------------------------------------------------------------------------
+   Utilities & components
+---------------------------------------------------------------------------- */
+@layer components {
+  .skip-link {
+    position: absolute;
+    left: -999px;
+    top: 0;
+    z-index: 100;
+    background: var(--color-ink);
+    color: var(--color-ivory);
+    padding: 0.75rem 1.25rem;
+    border-radius: 0 0 0.75rem 0;
+    font-size: 0.875rem;
+  }
+  .skip-link:focus {
+    left: 0;
+  }
+
+  .eyebrow {
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--color-hunter);
+  }
+
+  .container-page {
+    width: 100%;
+    max-width: 76rem;
+    margin-inline: auto;
+    padding-inline: 1.5rem;
+  }
+  @media (min-width: 768px) {
+    .container-page {
+      padding-inline: 2.5rem;
+    }
+  }
+
+  .hairline {
+    border-color: color-mix(in srgb, var(--color-stone) 32%, transparent);
+  }
+}
+
+/* ----------------------------------------------------------------------------
+   Subtle reveal-on-scroll (honors reduced motion)
+---------------------------------------------------------------------------- */
+.reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+
+.reveal[data-visible="true"] {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
