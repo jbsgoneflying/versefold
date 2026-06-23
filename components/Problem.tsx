@@ -10,51 +10,60 @@ const removed = [
 
 export function Problem() {
   return (
-    <section className="border-y border-[color-mix(in_srgb,var(--color-stone)_20%,transparent)] bg-[var(--color-ivory-deep)]">
-      <div className="container-page grid gap-12 py-20 md:py-28 lg:grid-cols-2 lg:gap-20">
-        <Reveal>
+    <section className="border-y border-[color-mix(in_srgb,var(--color-stone)_18%,transparent)] bg-[var(--color-ivory-deep)]">
+      <div className="container-page section-y grid gap-12 lg:grid-cols-2 lg:items-center lg:gap-20">
+        <Reveal className="max-w-xl">
           <SectionLabel>The problem</SectionLabel>
-          <h2 className="mt-5 text-4xl sm:text-5xl">
+          <h2 className="mt-5 text-[2rem] leading-tight sm:text-5xl">
             Scripture first. Everything else quiet.
           </h2>
-          <p className="mt-6 text-lg text-[var(--color-ink)]/72 leading-relaxed">
+          <p className="mt-6 text-[1.0625rem] leading-relaxed text-[var(--color-ink)]/72 sm:text-lg">
             Modern Bible apps often carry the same patterns as everything else
             on the screen: content feeds, social layers, notification loops,
             streaks, badges, and front pages full of distraction.
           </p>
-          <p className="mt-4 text-lg text-[var(--color-ink)]/72 leading-relaxed">
+          <p className="mt-4 text-[1.0625rem] leading-relaxed text-[var(--color-ink)]/72 sm:text-lg">
             Versefold is built in the opposite direction. It opens quietly. It
             puts Scripture first. The tools stay out of the way until you need
             them.
           </p>
         </Reveal>
 
-        <Reveal delay={120} className="flex items-center">
-          <ul className="w-full space-y-3">
-            {removed.map((item) => (
-              <li
-                key={item}
-                className="flex items-center gap-4 rounded-2xl border border-[color-mix(in_srgb,var(--color-stone)_24%,transparent)] bg-[var(--color-paper)] px-5 py-4 shadow-[var(--shadow-soft)]"
-              >
-                <span
-                  aria-hidden="true"
-                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--color-stone)_30%,transparent)] text-[var(--color-stone)]"
+        <Reveal delay={120}>
+          <div className="card overflow-hidden">
+            <p className="border-b border-[color-mix(in_srgb,var(--color-stone)_16%,transparent)] px-6 py-4 text-xs font-medium tracking-[0.16em] text-[var(--color-stone)] uppercase">
+              What we left out
+            </p>
+            <ul>
+              {removed.map((item, i) => (
+                <li
+                  key={item}
+                  className={`flex items-center gap-4 px-6 py-4 ${
+                    i !== removed.length - 1
+                      ? "border-b border-[color-mix(in_srgb,var(--color-stone)_14%,transparent)]"
+                      : ""
+                  }`}
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                    <path
-                      d="M5 12h14"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </span>
-                <span className="font-serif text-2xl text-[var(--color-ink)]/55 line-through decoration-[color-mix(in_srgb,var(--color-stone)_55%,transparent)] decoration-1">
-                  {item}
-                </span>
-              </li>
-            ))}
-          </ul>
+                  <span
+                    aria-hidden="true"
+                    className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--color-stone)_14%,transparent)] text-[var(--color-stone)]"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                      <path
+                        d="M6 12h12"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  </span>
+                  <span className="font-serif text-xl text-[var(--color-ink)]/70 sm:text-2xl">
+                    {item}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
         </Reveal>
       </div>
     </section>

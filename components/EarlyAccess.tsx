@@ -44,9 +44,9 @@ export function EarlyAccess() {
 
   return (
     <section id="early-access" className="scroll-mt-24">
-      <div className="container-page py-20 md:py-28">
+      <div className="container-page section-y">
         <Reveal>
-          <div className="relative overflow-hidden rounded-[2rem] border border-[color-mix(in_srgb,var(--color-evergreen)_50%,transparent)] bg-[var(--color-evergreen)] px-6 py-14 text-[var(--color-ivory)] shadow-[var(--shadow-lift)] sm:px-12 md:py-20">
+          <div className="relative overflow-hidden rounded-[2rem] border border-[color-mix(in_srgb,var(--color-evergreen)_50%,transparent)] bg-[var(--color-evergreen)] px-6 py-16 text-[var(--color-ivory)] shadow-[var(--shadow-float)] sm:px-12 md:py-20">
             <div
               aria-hidden="true"
               className="pointer-events-none absolute inset-0"
@@ -59,10 +59,10 @@ export function EarlyAccess() {
               <span className="eyebrow text-[color-mix(in_srgb,var(--color-ivory)_80%,transparent)]">
                 Early access
               </span>
-              <h2 className="mt-5 text-4xl text-[var(--color-ivory)] sm:text-5xl">
+              <h2 className="mt-5 text-[2.1rem] leading-tight text-[var(--color-ivory)] sm:text-5xl">
                 Help shape a quieter Bible app.
               </h2>
-              <p className="mx-auto mt-6 max-w-md text-lg text-[color-mix(in_srgb,var(--color-ivory)_82%,transparent)] leading-relaxed">
+              <p className="mx-auto mt-6 max-w-md text-[1.0625rem] leading-relaxed text-[color-mix(in_srgb,var(--color-ivory)_82%,transparent)] sm:text-lg">
                 Versefold is currently in early development. Join the list to
                 follow the build and be notified when private beta access opens.
               </p>
@@ -109,7 +109,7 @@ export function EarlyAccess() {
                         placeholder="First name (optional)"
                         value={firstName}
                         onChange={(e) => setFirstName(e.target.value)}
-                        className="w-full rounded-xl border border-[color-mix(in_srgb,var(--color-ivory)_22%,transparent)] bg-[color-mix(in_srgb,var(--color-ivory)_8%,transparent)] px-4 py-3.5 text-[var(--color-ivory)] placeholder:text-[color-mix(in_srgb,var(--color-ivory)_55%,transparent)] focus:border-[var(--color-ivory)] focus:outline-none"
+                        className="w-full rounded-xl border border-[color-mix(in_srgb,var(--color-ivory)_24%,transparent)] bg-[color-mix(in_srgb,var(--color-ivory)_8%,transparent)] px-4 py-4 text-[var(--color-ivory)] transition-colors placeholder:text-[color-mix(in_srgb,var(--color-ivory)_55%,transparent)] focus:border-[var(--color-ivory)] focus:bg-[color-mix(in_srgb,var(--color-ivory)_12%,transparent)] focus:outline-none"
                       />
                     </div>
                     <div className="sm:col-span-1">
@@ -129,7 +129,7 @@ export function EarlyAccess() {
                           if (status === "error") setStatus("idle");
                         }}
                         aria-invalid={status === "error"}
-                        className="w-full rounded-xl border border-[color-mix(in_srgb,var(--color-ivory)_22%,transparent)] bg-[color-mix(in_srgb,var(--color-ivory)_8%,transparent)] px-4 py-3.5 text-[var(--color-ivory)] placeholder:text-[color-mix(in_srgb,var(--color-ivory)_55%,transparent)] focus:border-[var(--color-ivory)] focus:outline-none"
+                        className="w-full rounded-xl border border-[color-mix(in_srgb,var(--color-ivory)_24%,transparent)] bg-[color-mix(in_srgb,var(--color-ivory)_8%,transparent)] px-4 py-4 text-[var(--color-ivory)] transition-colors placeholder:text-[color-mix(in_srgb,var(--color-ivory)_55%,transparent)] focus:border-[var(--color-ivory)] focus:bg-[color-mix(in_srgb,var(--color-ivory)_12%,transparent)] focus:outline-none"
                       />
                     </div>
                   </div>
@@ -137,7 +137,7 @@ export function EarlyAccess() {
                   <button
                     type="submit"
                     disabled={status === "submitting"}
-                    className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--color-ivory)] px-6 py-3.5 text-sm font-semibold text-[var(--color-evergreen)] transition-colors hover:bg-[var(--color-paper)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-ivory)] disabled:cursor-not-allowed disabled:opacity-70"
+                    className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--color-ivory)] px-6 py-4 text-[0.95rem] font-semibold text-[var(--color-evergreen)] shadow-[0_12px_28px_-16px_rgba(0,0,0,0.5)] transition-all hover:-translate-y-px hover:bg-[var(--color-paper)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-ivory)] disabled:cursor-not-allowed disabled:opacity-70"
                   >
                     {status === "submitting" ? "Joining\u2026" : "Join early access"}
                   </button>
@@ -152,8 +152,7 @@ export function EarlyAccess() {
                   )}
 
                   <p className="mt-4 text-center text-xs text-[color-mix(in_srgb,var(--color-ivory)_60%,transparent)]">
-                    We&rsquo;ll only email you about Versefold. Unsubscribe
-                    anytime.
+                    Private beta updates only. No noise.
                   </p>
                 </form>
               )}

@@ -9,8 +9,8 @@ export function Chip({
     <span
       className={
         active
-          ? "inline-flex items-center rounded-full border border-[var(--color-hunter)] bg-[color-mix(in_srgb,var(--color-hunter)_10%,transparent)] px-3.5 py-1.5 text-sm font-medium text-[var(--color-hunter)]"
-          : "inline-flex items-center rounded-full border border-[color-mix(in_srgb,var(--color-stone)_38%,transparent)] bg-[var(--color-paper)] px-3.5 py-1.5 text-sm text-[var(--color-ink)]/80"
+          ? "inline-flex items-center rounded-full border border-[color-mix(in_srgb,var(--color-hunter)_30%,transparent)] bg-[color-mix(in_srgb,var(--color-hunter)_8%,transparent)] px-4 py-2 text-sm text-[var(--color-hunter)]"
+          : "inline-flex items-center rounded-full border border-[color-mix(in_srgb,var(--color-stone)_22%,transparent)] bg-[var(--color-paper)] px-4 py-2 text-sm text-[var(--color-ink)]/75"
       }
     >
       {children}
