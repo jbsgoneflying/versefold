@@ -29,40 +29,41 @@ export function LogoMark({
             offset="0"
             stopColor={tone === "ivory" ? "var(--color-ivory)" : "var(--color-parchment)"}
           />
-          <stop
-            offset="1"
-            stopColor={tone === "ivory" ? "var(--color-stone)" : "var(--color-stone)"}
-          />
+          <stop offset="1" stopColor="var(--color-stone)" />
         </linearGradient>
       </defs>
 
-      {/* Left leaf — solid */}
+      {/* Left page — solid, tallest at the spine, sloping to rounded outer corners */}
       <path
-        d="M32 11.5C24.4 8.6 15.2 8.6 8 11.5L8 50.5C15.2 47.6 24.4 47.6 32 50.5Z"
+        d="M29 7C20 8.5 11 10 8 14Q7 15.5 7 18L7 45Q7 47.5 9.5 48C16 49.5 23 50.5 29 53Z"
         fill={leafFill}
+        stroke={leafFill}
+        strokeWidth="1.2"
+        strokeLinejoin="round"
       />
 
-      {/* Right leaf — page */}
+      {/* Right page — outlined, mirror of the left across the center gutter */}
       <path
-        d="M32 11.5C39.6 8.6 48.8 8.6 56 11.5L56 50.5C48.8 47.6 39.6 47.6 32 50.5Z"
+        d="M35 7C44 8.5 53 10 56 14Q57 15.5 57 18L57 45Q57 47.5 54.5 48C48 49.5 41 50.5 35 53Z"
         fill={pageFill}
         stroke={strokeColor}
-        strokeWidth="2.4"
+        strokeWidth="2.8"
         strokeLinejoin="round"
+        strokeLinecap="round"
       />
 
-      {/* Folded page corner (bottom-right) */}
+      {/* Folded page curl (bottom-right) */}
       <path
-        d="M56 39.5L56 50.5L45.5 47.2Z"
+        d="M57 34C55 42 50 47 44 47C49 45.5 54 41 57 34Z"
         fill={`url(#${gradId})`}
         stroke={strokeColor}
-        strokeWidth="1.6"
+        strokeWidth="1.5"
         strokeLinejoin="round"
       />
 
-      {/* Four-point star / light mark on the left leaf */}
+      {/* Four-point star on the left page */}
       <path
-        d="M19.6 20.5C20.7 27 22.8 29.1 29.3 30.2C22.8 31.3 20.7 33.4 19.6 39.9C18.5 33.4 16.4 31.3 9.9 30.2C16.4 29.1 18.5 27 19.6 20.5Z"
+        d="M16.5 23.5C17.3 28.5 18.5 29.7 23.5 30.5C18.5 31.3 17.3 32.5 16.5 37.5C15.7 32.5 14.5 31.3 9.5 30.5C14.5 29.7 15.7 28.5 16.5 23.5Z"
         fill={starColor}
       />
     </svg>
@@ -77,10 +78,10 @@ export function Logo({
   className?: string;
 }) {
   return (
-    <span className={`inline-flex items-center gap-2.5 ${className}`}>
-      <LogoMark tone={tone} className="h-8 w-8 shrink-0" />
+    <span className={`inline-flex items-center gap-3 ${className}`}>
+      <LogoMark tone={tone} className="h-9 w-9 shrink-0 md:h-10 md:w-10" />
       <span
-        className="font-serif text-[1.6rem] leading-none font-semibold tracking-tight"
+        className="font-serif text-[1.7rem] leading-none font-semibold tracking-tight md:text-[1.85rem]"
         style={{ color: tone === "ivory" ? "var(--color-ivory)" : "var(--color-ink)" }}
       >
         Versefold
