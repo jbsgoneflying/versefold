@@ -103,13 +103,32 @@ export async function getChapterVerses(
 ): Promise<ChapterVerses> {
   const passage = await getPassage(translationKey, `${osis}.${chapter}`);
 
-  const verses: Array<{ v: number; t: string }> = [];
-  const re = /\[(\d+)\]([^[]*)/g;
+  // A bracketed number is a verse marker only if it advances the sequence.
+  // Translations like AMP use brackets inside verse text ("Blessed [happy,
+  // spiritually prosperous]...") — those must stay part of the verse, not
+  // truncate it.
+  const markers: Array<{ v: number; start: number; end: number }> = [];
+  const markerRe = /\[(\d+)\]/g;
+  let last = 0;
   let m: RegExpExecArray | null;
-  while ((m = re.exec(passage.text)) !== null) {
-    const text = m[2].replace(/\s+/g, " ").trim();
-    if (text) verses.push({ v: Number(m[1]), t: text });
+  while ((m = markerRe.exec(passage.text)) !== null) {
+    const v = Number(m[1]);
+    if (v > last && v <= 200) {
+      markers.push({ v, start: m.index, end: m.index + m[0].length });
+      last = v;
+    }
   }
+
+  const verses = markers
+    .map((mk, i) => ({
+      v: mk.v,
+      t: passage.text
+        .slice(mk.end, markers[i + 1]?.start)
+        .replace(/\s+/g, " ")
+        .trim(),
+    }))
+    .filter((verse) => verse.t.length > 0);
+
   if (verses.length === 0) {
     // No markers (unexpected) — return the chapter as one block rather than nothing.
     verses.push({ v: 1, t: passage.text.replace(/\s+/g, " ").trim() });

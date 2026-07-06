@@ -68,6 +68,27 @@ struct Highlight: Codable, Identifiable {
     let verseStart: Int
     let verseEnd: Int
     let createdAt: Date
+
+    // Pen marks (optional — nil on all four means a whole-verse highlight;
+    // pre-existing saved highlights decode unchanged). Word indices refer to
+    // whitespace-split tokens of the verse in `translation`, so marks reflow
+    // with text-size changes but stay pinned to the words they were drawn on.
+    var wordStart: Int?
+    var wordEnd: Int?
+    var style: String?        // "marker" | "underline"
+    var translation: String?  // translation the mark was drawn in
+
+    var isPenMark: Bool { wordStart != nil && wordEnd != nil }
+
+    var penStyle: PenStyle? {
+        guard isPenMark else { return nil }
+        return PenStyle(rawValue: style ?? "") ?? .marker
+    }
+}
+
+enum PenStyle: String, Codable {
+    case marker
+    case underline
 }
 
 struct Note: Codable, Identifiable {

@@ -23,6 +23,20 @@ struct ReaderView: View {
     /// Verse briefly emphasized after a search jump; fades back to normal.
     @State private var flashedVerse: Int?
 
+    // Pen marking (press-and-hold, then drag across words)
+    @State private var markingVerse: Int?
+    @State private var markingAnchor: Int?
+    @State private var markingRange: ClosedRange<Int>?
+    @State private var wordFrames: [Int: CGRect] = [:]
+    @State private var pendingMark: PendingPenMark?
+
+    struct PendingPenMark: Equatable {
+        let verse: Int
+        let range: ClosedRange<Int>
+    }
+
+    private static let penSpace = "penSpace"
+
     private var theme: ReaderTheme { ReaderTheme(rawValue: themeRaw) ?? .ivory }
 
     private var selection: VerseSelection? {
@@ -43,7 +57,10 @@ struct ReaderView: View {
             // Selection bar floats over the text: taps keep extending the
             // range (5 then 15 selects 5-15) while actions stay one tap away.
             .overlay(alignment: .bottom) {
-                if let selection {
+                if let pending = pendingMark {
+                    penStyleChooser(pending)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                } else if let selection {
                     selectionBar(selection)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 } else if let ret = scripture.studyReturn {
@@ -53,6 +70,7 @@ struct ReaderView: View {
             }
             .animation(.spring(duration: 0.3), value: selectedVerses)
             .animation(.spring(duration: 0.3), value: scripture.studyReturn)
+            .animation(.spring(duration: 0.3), value: pendingMark)
             .toolbar { if !focusMode { readerToolbar } }
             .toolbarBackground(theme.background, for: .navigationBar)
             .sheet(isPresented: $showBookPicker) { BookPickerView() }
@@ -73,6 +91,7 @@ struct ReaderView: View {
             }
             .onChange(of: scripture.location) {
                 clearSelection()
+                clearPenMarking()
                 // The study breadcrumb survives its own jump, then dissolves
                 // on any further navigation — it never lingers.
                 scripture.noteLocationChanged()
@@ -100,6 +119,9 @@ struct ReaderView: View {
                 .padding(.horizontal, 24)
                 .padding(.vertical, 16)
             }
+            // Shared space for pen marking: word frames and the drag's finger
+            // position are compared in these coordinates.
+            .coordinateSpace(name: Self.penSpace)
             // Licensed translations stream through the backend; the session
             // cache makes flipping back and forth instant after the first look.
             .task(id: "\(scripture.translation)|\(scripture.location.osis).\(scripture.location.chapter)") {
@@ -204,19 +226,54 @@ struct ReaderView: View {
     private func verseRow(_ verse: BibleVerse) -> some View {
         let isSelected = selectedVerses.contains(verse.v)
         let isFlashed = flashedVerse == verse.v
+        let penMarks = library.penMarks(
+            osis: scripture.location.osis, chapter: scripture.location.chapter,
+            verse: verse.v, translation: scripture.translation
+        ).compactMap { h -> (range: ClosedRange<Int>, style: PenStyle)? in
+            guard let s = h.wordStart, let e = h.wordEnd, s <= e, let style = h.penStyle else { return nil }
+            return (s...e, style)
+        }
+        let isMarking = markingVerse == verse.v || pendingMark?.verse == verse.v
+        // A verse pen-marked in another translation falls back to the plain
+        // full-verse tint here — its words are different words.
         let isHighlighted = library.isHighlighted(
             osis: scripture.location.osis, chapter: scripture.location.chapter, verse: verse.v
-        )
-        return (
-            Text(showVerseNumbers ? "\(verse.v) " : "")
-                .font(.system(size: max(11, scriptureSize * 0.55)))
-                .foregroundStyle(theme.meta)
-                .baselineOffset(4)
-            + Text(verse.t)
-                .font(.scripture(size: scriptureSize))
-                .foregroundStyle(theme.text)
-        )
-        .lineSpacing(CGFloat(lineSpacing))
+        ) || (penMarks.isEmpty && !isMarking && library.hasPenMark(
+            osis: scripture.location.osis, chapter: scripture.location.chapter, verse: verse.v
+        ))
+
+        return Group {
+            // Word-by-word layout only where ink lives; everything else keeps
+            // the single-Text fast path.
+            if !penMarks.isEmpty || isMarking {
+                MarkedVerseText(
+                    verseNumber: verse.v,
+                    words: Self.words(of: verse.t),
+                    showVerseNumber: showVerseNumbers,
+                    fontSize: scriptureSize,
+                    lineSpacing: lineSpacing,
+                    theme: theme,
+                    marks: penMarks,
+                    liveRange: isMarking ? (markingRange ?? pendingMark?.range) : nil,
+                    seed: penSeed(verse: verse.v),
+                    coordinateSpace: Self.penSpace
+                )
+                .onPreferenceChange(WordFramesKey.self) { frames in
+                    if markingVerse == verse.v { wordFrames = frames }
+                }
+            } else {
+                (
+                    Text(showVerseNumbers ? "\(verse.v) " : "")
+                        .font(.system(size: max(11, scriptureSize * 0.55)))
+                        .foregroundStyle(theme.meta)
+                        .baselineOffset(4)
+                    + Text(verse.t)
+                        .font(.scripture(size: scriptureSize))
+                        .foregroundStyle(theme.text)
+                )
+                .lineSpacing(CGFloat(lineSpacing))
+            }
+        }
         .padding(.horizontal, 6)
         .padding(.vertical, 2)
         .background(
@@ -227,10 +284,175 @@ struct ReaderView: View {
                       ? Brand.hunter.opacity(0.14)
                       : isHighlighted ? Brand.parchment.opacity(theme == .ivory ? 1.0 : 0.25) : .clear)
         )
+        // The pen is live: a quiet dashed edge says "drag across the words".
+        // Haptics alone were invisible in the simulator and easy to miss.
+        .overlay {
+            if markingVerse == verse.v && pendingMark == nil {
+                RoundedRectangle(cornerRadius: 6)
+                    .strokeBorder(
+                        theme.underlineInk.opacity(0.55),
+                        style: StrokeStyle(lineWidth: 1.5, dash: [5, 4])
+                    )
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeOut(duration: 0.15), value: markingVerse)
         .contentShape(Rectangle())
         .onTapGesture { toggleVerse(verse.v) }
+        .gesture(penGesture(verse))
         .accessibilityLabel("Verse \(verse.v). \(verse.t)")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    // MARK: Pen marking (press-and-hold, then drag across words)
+
+    /// Word tokens for pen anchoring. Must stay in sync with the snippet
+    /// rendering in the Library.
+    static func words(of text: String) -> [String] {
+        text.split(separator: " ").map(String.init)
+    }
+
+    /// Stable per-verse seed so hand-drawn wobble never jitters between runs.
+    private func penSeed(verse: Int) -> Int {
+        var hash = 5381
+        for byte in "\(scripture.location.osis).\(scripture.location.chapter).\(verse)".utf8 {
+            hash = (hash &* 33) &+ Int(byte)
+        }
+        return hash
+    }
+
+    /// Arm the pen on this verse: word layout on, frames flowing, one haptic.
+    private func liftPen(on verse: BibleVerse) {
+        guard markingVerse != verse.v else { return }
+        pendingMark = nil
+        markingVerse = verse.v
+        markingAnchor = nil
+        markingRange = nil
+        wordFrames = [:]
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+    }
+
+    private func penGesture(_ verse: BibleVerse) -> some Gesture {
+        LongPressGesture(minimumDuration: 0.35)
+            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.penSpace)))
+            .onChanged { value in
+                switch value {
+                case .second(true, nil):
+                    // The hold completed — the pen lifts. (`.first(true)` is
+                    // merely finger-down; acting there armed the pen too early
+                    // and never at the right moment.) The row flips to word
+                    // layout and starts reporting word frames for the drag.
+                    liftPen(on: verse)
+                case .second(true, let drag?):
+                    liftPen(on: verse) // some runs skip the `.second(_, nil)` step
+                    guard let index = wordIndex(at: drag.location) else { return }
+                    if markingAnchor == nil { markingAnchor = index }
+                    let anchor = markingAnchor ?? index
+                    let range = min(anchor, index)...max(anchor, index)
+                    if range != markingRange {
+                        markingRange = range
+                        UISelectionFeedbackGenerator().selectionChanged()
+                    }
+                default:
+                    break
+                }
+            }
+            .onEnded { _ in
+                guard markingVerse == verse.v else { return }
+                if let range = markingRange {
+                    pendingMark = PendingPenMark(verse: verse.v, range: range)
+                } else {
+                    // Held but never painted a word: quietly stand down.
+                    clearPenMarking()
+                }
+            }
+    }
+
+    /// The word under the finger, or the nearest one — dragging through a
+    /// word gap or between lines keeps painting smoothly.
+    private func wordIndex(at point: CGPoint) -> Int? {
+        if let hit = wordFrames.first(where: { $0.value.insetBy(dx: -3, dy: -4).contains(point) }) {
+            return hit.key
+        }
+        return wordFrames.min { a, b in
+            wordDistance(a.value, to: point) < wordDistance(b.value, to: point)
+        }?.key
+    }
+
+    private func wordDistance(_ rect: CGRect, to point: CGPoint) -> CGFloat {
+        let dx = max(rect.minX - point.x, 0, point.x - rect.maxX)
+        // Weight vertical distance so painting hugs the line the finger is on.
+        let dy = max(rect.minY - point.y, 0, point.y - rect.maxY) * 3
+        return dx * dx + dy * dy
+    }
+
+    private func clearPenMarking() {
+        markingVerse = nil
+        markingAnchor = nil
+        markingRange = nil
+        wordFrames = [:]
+        pendingMark = nil
+    }
+
+    private func savePenMark(_ pending: PendingPenMark, style: PenStyle) {
+        guard let meta = scripture.meta(for: scripture.location.osis) else { return }
+        library.addPenMark(
+            osis: meta.osis, bookName: meta.name,
+            chapter: scripture.location.chapter, verse: pending.verse,
+            wordRange: pending.range, style: style, translation: scripture.translation
+        )
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        clearPenMarking()
+    }
+
+    /// After the finger lifts: pick the ink. Lives in the floating-bar slot.
+    private func penStyleChooser(_ pending: PendingPenMark) -> some View {
+        HStack(spacing: 12) {
+            Text("Verse \(pending.verse)")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(theme.text)
+                .lineLimit(1)
+
+            Spacer(minLength: 0)
+
+            Button {
+                savePenMark(pending, style: .marker)
+            } label: {
+                Label("Marker", systemImage: "highlighter")
+                    .font(.system(size: 14, weight: .medium))
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(Brand.hunter)
+
+            Button {
+                savePenMark(pending, style: .underline)
+            } label: {
+                Label("Underline", systemImage: "underline")
+                    .font(.system(size: 14, weight: .medium))
+            }
+            .buttonStyle(.bordered)
+            .tint(Brand.hunter)
+
+            Button {
+                clearPenMarking()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(theme.meta)
+                    .frame(width: 30, height: 30)
+                    .background(Circle().fill(theme.meta.opacity(0.12)))
+            }
+            .accessibilityLabel("Cancel mark")
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 22)
+                .fill(.regularMaterial)
+                .shadow(color: .black.opacity(0.12), radius: 14, y: 6)
+        )
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
     }
 
     private var chapterFooter: some View {
@@ -409,8 +631,12 @@ struct ReaderView: View {
                 } label: {
                     Label("Highlight", systemImage: "highlighter")
                 }
-                Button { activeSheet = .card(selection) } label: {
-                    Label("Confession card", systemImage: "rectangle.portrait.on.rectangle.portrait")
+                // Cards are built around one verse — a range can't fit the
+                // full text beautifully, so the action appears only for one.
+                if selection.verses.count == 1 {
+                    Button { activeSheet = .card(selection) } label: {
+                        Label("Confession card", systemImage: "rectangle.portrait.on.rectangle.portrait")
+                    }
                 }
                 Button { activeSheet = .study(selection) } label: {
                     Label("Create study", systemImage: "list.bullet.rectangle")

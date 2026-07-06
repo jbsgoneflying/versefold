@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		3C2D3C22BA553A4B037530ED /* PenMarkViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95EB4F4D90AEBC87DC35689A /* PenMarkViews.swift */; };
 		3C56E2483064E226E453B02D /* LibraryViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9509912334D01DC62D6FCFD7 /* LibraryViews.swift */; };
 		4174D19A505DCB972665E5EB /* UnfoldViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 562410D47B92E163CAE30B08 /* UnfoldViews.swift */; };
 		4D8775D74E0355770E012594 /* ScriptureStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A58D9AB2ADE0C13723D931E /* ScriptureStore.swift */; };
@@ -35,6 +36,7 @@
 		77AD7B4BD7F7E6EA5F25D117 /* kjv */ = {isa = PBXFileReference; lastKnownFileType = folder; name = kjv; path = Versefold/Resources/kjv; sourceTree = SOURCE_ROOT; };
 		9490B81D3C278751D4F953F4 /* LibraryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryStore.swift; sourceTree = "<group>"; };
 		9509912334D01DC62D6FCFD7 /* LibraryViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryViews.swift; sourceTree = "<group>"; };
+		95EB4F4D90AEBC87DC35689A /* PenMarkViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PenMarkViews.swift; sourceTree = "<group>"; };
 		C2CD5E58B7FD41302070F267 /* StudyViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyViews.swift; sourceTree = "<group>"; };
 		D212149746DF36D120314672 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		D45C75555769E5D41A8C9477 /* AIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIClient.swift; sourceTree = "<group>"; };
@@ -61,6 +63,7 @@
 				9490B81D3C278751D4F953F4 /* LibraryStore.swift */,
 				9509912334D01DC62D6FCFD7 /* LibraryViews.swift */,
 				2E2D825C087348FD729F9352 /* Models.swift */,
+				95EB4F4D90AEBC87DC35689A /* PenMarkViews.swift */,
 				194F7E4008EEF7F214D2F368 /* PlusStore.swift */,
 				7213FD761EDCF11C9CD1F369 /* ReaderViews.swift */,
 				6A58D9AB2ADE0C13723D931E /* ScriptureStore.swift */,
@@ -112,6 +115,10 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					81E9DFCADEEF6C1E655E57AD = {
+						DevelopmentTeam = VFDP96W9C2;
+						ProvisioningStyle = Automatic;
+					};
 				};
 			};
 			buildConfigurationList = 7EA515AED2B896766F4BF95A /* Build configuration list for PBXProject "Versefold" */;
@@ -155,6 +162,7 @@
 				E5148964908215D195A048FE /* LibraryStore.swift in Sources */,
 				3C56E2483064E226E453B02D /* LibraryViews.swift in Sources */,
 				F1D1DE09FD25702CB9208472 /* Models.swift in Sources */,
+				3C2D3C22BA553A4B037530ED /* PenMarkViews.swift in Sources */,
 				A262C9357172B5DBA7F811FC /* PlusStore.swift in Sources */,
 				BF53FB0F05A3B408434EAE9C /* ReaderViews.swift in Sources */,
 				4D8775D74E0355770E012594 /* ScriptureStore.swift in Sources */,
@@ -182,7 +190,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.versefold.ios;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -219,9 +227,11 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = VFDP96W9C2;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -233,6 +243,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Versefold saves your Scripture cards to your photo library.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -280,9 +291,11 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = VFDP96W9C2;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -300,6 +313,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Versefold saves your Scripture cards to your photo library.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -328,7 +342,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.versefold.ios;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};

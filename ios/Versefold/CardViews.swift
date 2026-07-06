@@ -43,18 +43,7 @@ struct CardComposerView: View {
                 VStack(spacing: 20) {
                     practiceIntro
 
-                    ScriptureCardView(
-                        scripture: scriptureText,
-                        reference: selection.reference,
-                        translation: "KJV",
-                        personalText: personalText.isEmpty ? nil : personalText,
-                        theme: theme,
-                        typeSize: typeSize
-                    )
-                    .aspectRatio(9.0 / 19.5, contentMode: .fit)
-                    .frame(maxHeight: 420)
-                    .clipShape(RoundedRectangle(cornerRadius: 28))
-                    .shadow(color: .black.opacity(0.15), radius: 20, y: 10)
+                    cardPreview
 
                     confessionSection
                     themePicker
@@ -73,6 +62,28 @@ struct CardComposerView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } } }
         }
+    }
+
+    /// WYSIWYG: the preview IS the export — same 393x852pt canvas the image
+    /// renderer uses, scaled down visually. Fonts, wrapping, and spacing in
+    /// the preview match the saved PNG exactly.
+    private var cardPreview: some View {
+        let canvas = CGSize(width: 393, height: 852)
+        let previewHeight: CGFloat = 420
+        let scale = previewHeight / canvas.height
+        return ScriptureCardView(
+            scripture: scriptureText,
+            reference: selection.reference,
+            translation: "KJV",
+            personalText: personalText.isEmpty ? nil : personalText,
+            theme: theme,
+            typeSize: typeSize
+        )
+        .frame(width: canvas.width, height: canvas.height)
+        .clipShape(RoundedRectangle(cornerRadius: 56))
+        .scaleEffect(scale)
+        .frame(width: canvas.width * scale, height: previewHeight)
+        .shadow(color: .black.opacity(0.15), radius: 20, y: 10)
     }
 
     /// Why this exists: meditate (Hebrew "hagah") literally means to mutter —
@@ -269,10 +280,11 @@ struct ScriptureCardView: View {
                 // Confession first — the reader's own voice, top of the card
                 if let personalText {
                     Text(personalText)
-                        .font(.system(size: max(15, typeSize * 0.72)))
+                        .font(.system(size: max(16, typeSize * 0.8)))
                         .italic()
-                        .foregroundStyle(theme.text.opacity(0.9))
+                        .foregroundStyle(theme.text.opacity(0.92))
                         .multilineTextAlignment(.center)
+                        .lineSpacing(4)
                         .minimumScaleFactor(0.5)
                         .padding(.horizontal, 40)
                 }
@@ -290,6 +302,7 @@ struct ScriptureCardView: View {
                         .font(.system(size: typeSize, design: .serif))
                         .foregroundStyle(theme.text)
                         .multilineTextAlignment(.center)
+                        .lineSpacing(5)
                         .minimumScaleFactor(0.35)
                         .padding(.horizontal, 36)
 

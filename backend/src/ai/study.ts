@@ -52,6 +52,8 @@ export async function generateStudy(req: StudyRequest): Promise<StudyResult> {
     `- Depth: ${req.depth}.${req.lens ? ` Lens: ${req.lens}.` : ""}`,
     `- Each day: one primary reading (OSIS reference), up to 3 supporting readings, brief context,`,
     `  a central theme, 2-4 reflection questions, a short prayer prompt, and optionally one practical response.`,
+    `- Every reading MUST be a full OSIS reference with standard 3-letter book codes,`,
+    `  e.g. "JHN.3.16", "PSA.23", or "ROM.8.28-ROM.8.30" (ranges repeat the book and chapter).`,
     `- Only cite Bible references you are confident exist. Do not include streaks, scores, or completion pressure.`,
   ].join("\n");
 
@@ -72,23 +74,30 @@ export async function generateStudy(req: StudyRequest): Promise<StudyResult> {
     throw err;
   }
 
-  // Validate every reading across every day; drop invalid supporting refs,
-  // reject the plan if any PRIMARY reading is invalid (a study day without
-  // its reading is not a study day).
+  // Validate every reading across every day; drop invalid supporting refs.
+  // If a day's PRIMARY reading is invalid, promote its first valid supporting
+  // reading instead of rejecting the whole plan — only give up when a day has
+  // no valid reading at all.
   const dropped: string[] = [];
   for (const day of plan.days) {
     const primary = await validateCitations("kjv", [day.primaryReading]);
-    if (primary.valid.length === 0) {
+    const supporting = await validateCitations("kjv", day.supportingReadings);
+    dropped.push(...supporting.dropped);
+
+    if (primary.valid.length > 0) {
+      day.primaryReading = primary.valid[0];
+      day.supportingReadings = supporting.valid;
+    } else if (supporting.valid.length > 0) {
+      dropped.push(...primary.dropped);
+      day.primaryReading = supporting.valid[0];
+      day.supportingReadings = supporting.valid.slice(1);
+    } else {
       const err = new Error(
-        `Generated study day ${day.dayNumber} cited an invalid primary reading; plan rejected.`
+        `Generated study day ${day.dayNumber} had no valid readings; nothing was saved. Please try again.`
       );
       (err as Error & { statusCode: number }).statusCode = 502;
       throw err;
     }
-    day.primaryReading = primary.valid[0];
-    const supporting = await validateCitations("kjv", day.supportingReadings);
-    day.supportingReadings = supporting.valid;
-    dropped.push(...supporting.dropped);
   }
 
   return {

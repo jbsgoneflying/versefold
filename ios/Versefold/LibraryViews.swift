@@ -29,7 +29,12 @@ struct LibraryView: View {
                     Section("Highlights") {
                         ForEach(library.highlights.reversed()) { h in
                             Button { jump(h.osis, h.chapter, verse: h.verseStart) } label: {
-                                referenceLabel("\(h.bookName) \(h.chapter):\(refRange(h.verseStart, h.verseEnd))", date: h.createdAt)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    referenceLabel("\(h.bookName) \(h.chapter):\(refRange(h.verseStart, h.verseEnd))", date: h.createdAt)
+                                    if h.isPenMark {
+                                        penMarkDetail(h)
+                                    }
+                                }
                             }
                         }
                         .onDelete { offsets in
@@ -122,6 +127,39 @@ struct LibraryView: View {
 
     private func refRange(_ start: Int, _ end: Int) -> String {
         start == end ? "\(start)" : "\(start)-\(end)"
+    }
+
+    /// Pen marks list the full verse reference but quote just the words that
+    /// were inked, with a glyph for the stroke style.
+    private func penMarkDetail(_ h: Highlight) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Image(systemName: h.penStyle == .underline ? "underline" : "highlighter")
+                .font(.system(size: 11))
+                .foregroundStyle(Brand.stone)
+            if let snippet = penSnippet(h) {
+                Text("\u{201C}\(snippet)\u{201D}")
+                    .font(.scripture(size: 14))
+                    .foregroundStyle(Brand.ink.opacity(0.85))
+                    .lineLimit(2)
+            } else {
+                // Licensed text isn't stored on device; name the translation instead.
+                Text("Marked words in \((h.translation ?? "kjv").uppercased())")
+                    .font(.system(size: 12)).italic()
+                    .foregroundStyle(Brand.stone)
+            }
+        }
+    }
+
+    /// The inked words, quoted from the offline KJV bundle. Marks made in a
+    /// licensed translation can't quote here (nothing is stored on device).
+    private func penSnippet(_ h: Highlight) -> String? {
+        guard let start = h.wordStart, let end = h.wordEnd,
+              (h.translation ?? "kjv") == "kjv",
+              let hit = scripture.hit(forRef: "\(h.osis).\(h.chapter).\(h.verseStart)")
+        else { return nil }
+        let words = ReaderView.words(of: hit.text)
+        guard start < words.count, start <= end else { return nil }
+        return words[start...min(end, words.count - 1)].joined(separator: " ")
     }
 
     /// Land on the exact verse, centered and briefly flashed (same path as

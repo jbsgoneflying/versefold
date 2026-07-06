@@ -23,6 +23,12 @@ const fakePassages: Record<string, { reference: string; content: string }> = {
     content:
       "[1] And it shall come to pass, if thou shalt hearken diligently.\n[2] And all these blessings shall come on thee.\n[5] Blessed shall be thy basket and thy store.",
   },
+  // AMP-style: brackets inside verse text must not truncate verses.
+  "PSA.1": {
+    reference: "Psalm 1",
+    content:
+      "[1] Blessed [fortunate, prosperous, and favored by God] is the man who does not walk in the counsel of the wicked. [2] But his delight is in the law of the Lord, and on His law [His precepts and teachings] he [habitually] meditates day and night.",
+  },
 };
 
 const realFetch = globalThis.fetch;
@@ -143,6 +149,17 @@ describe("Versefold backend routes", () => {
     ]);
     expect(chapter.copyright).toBe("© Test Publisher"); // attribution flows through
     expect(chapter.translation).toBe("NIV");
+  });
+
+  it("keeps AMP-style bracketed amplifications inside verse text", async () => {
+    const res = await app.inject({ method: "GET", url: "/v1/scripture/amp/chapter/PSA/1" });
+    expect(res.statusCode).toBe(200);
+    const { chapter } = res.json();
+    expect(chapter.verses).toHaveLength(2);
+    expect(chapter.verses[0].t).toBe(
+      "Blessed [fortunate, prosperous, and favored by God] is the man who does not walk in the counsel of the wicked."
+    );
+    expect(chapter.verses[1].t).toContain("[His precepts and teachings] he [habitually] meditates");
   });
 
   it("rejects chapter requests for unknown translations", async () => {

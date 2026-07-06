@@ -46,9 +46,44 @@ final class LibraryStore: ObservableObject {
         save()
     }
 
+    /// Whole-verse highlights only — pen marks render as word decorations,
+    /// not a full-verse tint (see penMarks/hasPenMark below).
     func isHighlighted(osis: String, chapter: Int, verse: Int) -> Bool {
         highlights.contains {
-            $0.osis == osis && $0.chapter == chapter && ($0.verseStart...$0.verseEnd).contains(verse)
+            !$0.isPenMark && $0.osis == osis && $0.chapter == chapter
+                && ($0.verseStart...$0.verseEnd).contains(verse)
+        }
+    }
+
+    // MARK: Pen marks (partial-verse highlights drawn by finger)
+
+    func addPenMark(
+        osis: String, bookName: String, chapter: Int, verse: Int,
+        wordRange: ClosedRange<Int>, style: PenStyle, translation: String
+    ) {
+        highlights.append(Highlight(
+            id: UUID(), osis: osis, bookName: bookName, chapter: chapter,
+            verseStart: verse, verseEnd: verse, createdAt: Date(),
+            wordStart: wordRange.lowerBound, wordEnd: wordRange.upperBound,
+            style: style.rawValue, translation: translation
+        ))
+        save()
+    }
+
+    /// Pen marks drawn on this verse in the given translation (marks are
+    /// word-anchored, so they only render where those words exist).
+    func penMarks(osis: String, chapter: Int, verse: Int, translation: String) -> [Highlight] {
+        highlights.filter {
+            $0.isPenMark && $0.osis == osis && $0.chapter == chapter
+                && $0.verseStart == verse && ($0.translation ?? "kjv") == translation
+        }
+    }
+
+    /// True when the verse has any pen mark in ANY translation — used for the
+    /// full-verse tint fallback when reading a different translation.
+    func hasPenMark(osis: String, chapter: Int, verse: Int) -> Bool {
+        highlights.contains {
+            $0.isPenMark && $0.osis == osis && $0.chapter == chapter && $0.verseStart == verse
         }
     }
 
