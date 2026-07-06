@@ -1,0 +1,30 @@
+# systemd unit for the Versefold backend (beta)
+#
+#   sudo cp versefold-api.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now versefold-api
+#
+# Secrets live in /var/www/versefold-api/.env (never in the repo):
+#   API_BIBLE_KEY=... OPENAI_API_KEY=... PORT=8787
+
+[Unit]
+Description=Versefold API
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/var/www/versefold-api
+EnvironmentFile=/var/www/versefold-api/.env
+ExecStart=/usr/bin/npx tsx src/server.ts
+Restart=always
+RestartSec=3
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/www/versefold-api/data
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

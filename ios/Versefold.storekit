@@ -1,0 +1,65 @@
+{
+  "identifier" : "F0000000",
+  "nonRenewingSubscriptions" : [],
+  "products" : [],
+  "settings" : {
+    "_askToBuyEnabled" : false
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "21000000",
+      "localizations" : [],
+      "name" : "Versefold Plus",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [],
+          "displayPrice" : "4.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "plus-monthly",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Higher study limits, all lenses",
+              "displayName" : "Versefold Plus (Monthly)",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "app.versefold.plus.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Plus Monthly",
+          "subscriptionGroupID" : "21000000",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [],
+          "displayPrice" : "39.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "plus-annual",
+          "introductoryOffer" : {
+            "internalID" : "plus-annual-trial",
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P1W"
+          },
+          "localizations" : [
+            {
+              "description" : "Higher study limits, all lenses. One week free.",
+              "displayName" : "Versefold Plus (Annual)",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "app.versefold.plus.annual",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Plus Annual",
+          "subscriptionGroupID" : "21000000",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

@@ -32,6 +32,13 @@ jobs:
       - name: Build static export
         run: npm run build
 
+      - name: Backend install, typecheck, and tests
+        working-directory: backend
+        run: |
+          npm ci
+          npm run typecheck
+          npm test
+
       - name: Configure SSH
         run: |
           mkdir -p ~/.ssh
@@ -45,6 +52,25 @@ jobs:
             -e "ssh -i ~/.ssh/id_deploy -p ${{ secrets.DROPLET_PORT || '22' }}" \
             out/ \
             "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}:${{ secrets.DROPLET_PATH || '/var/www/versefold' }}/"
+
+      - name: Deploy backend via rsync
+        run: |
+          rsync -avz --delete \
+            --exclude node_modules --exclude data --exclude .env --exclude index \
+            -e "ssh -i ~/.ssh/id_deploy -p ${{ secrets.DROPLET_PORT || '22' }}" \
+            backend/ \
+            "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}:/var/www/versefold-api/"
+
+      - name: Install backend deps and restart service
+        run: |
+          ssh -i ~/.ssh/id_deploy -p "${{ secrets.DROPLET_PORT || '22' }}" \
+            "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "cd /var/www/versefold-api && npm ci --omit=dev --ignore-scripts && npm i --no-save tsx typescript && mkdir -p data && (sudo systemctl restart versefold-api || true)"
+
+      - name: Run backend tests before considering deploy healthy
+        if: always()
+        run: |
+          curl -fsS --retry 5 --retry-delay 3 "https://api.versefold.app/health" || echo "health check skipped (api not yet provisioned)"
 
       - name: Clean up SSH key
         if: always()

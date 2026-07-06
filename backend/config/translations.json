@@ -1,0 +1,86 @@
+{
+  "$comment": "Machine-readable translation rights policy. bible_id values marked TODO must be copied from the API.Bible dashboard (Plan -> Additional Bibles). Run `node scripts/validate-sources.mjs` to discover and verify them.",
+  "translations": {
+    "kjv": {
+      "name": "King James Version",
+      "abbreviation": "KJV",
+      "bibleId": "de4e12af7f28f599-01",
+      "publicDomain": true,
+      "rights": {
+        "display": true,
+        "offlineStorage": true,
+        "fullTextSearch": true,
+        "passageExport": true,
+        "cardExport": true,
+        "llmSend": true,
+        "embedding": true,
+        "caching": true,
+        "cacheTtlSeconds": 0,
+        "attributionRequired": true,
+        "maxQuoteVerses": null,
+        "territories": ["*"]
+      }
+    },
+    "web": {
+      "name": "World English Bible",
+      "abbreviation": "WEB",
+      "bibleId": "9879dbb7cfe39e4d-01",
+      "publicDomain": true,
+      "$comment": "PD status assumed - verify. Candidate second bundled translation.",
+      "rights": {
+        "display": true,
+        "offlineStorage": true,
+        "fullTextSearch": true,
+        "passageExport": true,
+        "cardExport": true,
+        "llmSend": true,
+        "embedding": true,
+        "caching": true,
+        "cacheTtlSeconds": 0,
+        "attributionRequired": true,
+        "maxQuoteVerses": null,
+        "territories": ["*"]
+      }
+    },
+    "niv": {
+      "name": "New International Version",
+      "abbreviation": "NIV",
+      "bibleId": "78a9f6124f344018-01",
+      "publicDomain": false,
+      "rights": {
+        "display": true,
+        "offlineStorage": false,
+        "fullTextSearch": false,
+        "passageExport": true,
+        "cardExport": false,
+        "llmSend": false,
+        "embedding": false,
+        "caching": true,
+        "cacheTtlSeconds": 86400,
+        "attributionRequired": true,
+        "maxQuoteVerses": 500,
+        "territories": ["*"]
+      }
+    },
+    "amp": {
+      "name": "Amplified Bible",
+      "abbreviation": "AMP",
+      "bibleId": "a81b73293d3080c9-01",
+      "publicDomain": false,
+      "rights": {
+        "display": true,
+        "offlineStorage": false,
+        "fullTextSearch": false,
+        "passageExport": true,
+        "cardExport": false,
+        "llmSend": false,
+        "embedding": false,
+        "caching": true,
+        "cacheTtlSeconds": 86400,
+        "attributionRequired": true,
+        "maxQuoteVerses": 500,
+        "territories": ["*"]
+      }
+    }
+  }
+}

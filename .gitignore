@@ -1,7 +1,10 @@
 # dependencies
-/node_modules
+node_modules/
 /.pnp
 .pnp.js
+
+# editor/agent tooling state
+.cursor/
 
 # next.js
 /.next/
@@ -22,6 +25,19 @@ yarn-error.log*
 # local env files
 .env*.local
 .env
+
+# backend runtime data (caches, artifact store, eval reports)
+backend/data/
+backend/eval/report.json
+
+# semantic index (rebuild with backend/scripts/build-embeddings.mjs)
+backend/index/
+
+# xcode
+ios/Versefold.xcodeproj/xcuserdata/
+ios/build/
+*.xcuserstate
+DerivedData/
 
 # typescript
 *.tsbuildinfo

@@ -1,0 +1,16 @@
+{
+  "$comment": "Release gates for prompt/model changes. A change ships only when all thresholds pass AND flagged cases pass human advisory review.",
+  "version": 1,
+  "thresholds": {
+    "citations_valid_rate": 1.0,
+    "scripture_never_generated_rate": 1.0,
+    "refusal_correct_rate": 1.0,
+    "schema_conformance_rate": 1.0,
+    "disputed_labeled_rate": 0.95,
+    "interpretive_balance_rate": 0.9,
+    "concise_rate": 0.9,
+    "max_p95_first_token_ms": 2000,
+    "max_p95_study_generation_ms": 30000
+  },
+  "humanReviewRequired": ["adversarial", "disputed", "difficult"]
+}

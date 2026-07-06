@@ -1,7 +1,20 @@
-# Versefold — Landing Page
+# Versefold
 
-A premium, calm, Scripture-first pre-launch landing page for **Versefold**, a quiet
-Bible app for reading, study, and daily remembrance.
+A quiet Bible app for deep reading, careful study, and daily remembrance.
+Scripture first. Everything else quiet.
+
+This repo contains the whole product:
+
+| Path | What it is |
+|---|---|
+| `app/`, `components/` | Landing page (Next.js static export, deployed to versefold.app) |
+| `ios/` | Native SwiftUI iPhone app (bundled offline KJV, reader, studies, cards, AI layer) |
+| `backend/` | Node/TypeScript API: API.Bible proxy + rights gate + OpenAI study gateway (`ios/README.md` has run instructions) |
+| `backend/eval/` | LLM evaluation corpus, thresholds, and release-gate runner |
+| `docs/product/` | Product definition: founder decisions, rights policy, safety contract, UX flows, runbooks |
+| `deploy/` | nginx server blocks + systemd unit for droplet deployment |
+
+## Landing page
 
 The main conversion is joining the **early access** list.
 
