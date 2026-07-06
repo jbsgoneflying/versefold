@@ -29,13 +29,23 @@ struct ReaderView: View {
     @State private var markingRange: ClosedRange<Int>?
     @State private var wordFrames: [Int: CGRect] = [:]
     @State private var pendingMark: PendingPenMark?
+    /// UIKit-level scroll freeze while painting (see ScrollLock for why
+    /// SwiftUI's scrollDisabled cannot do this job).
+    @State private var scrollLock = ScrollLock()
+    /// Verse-row frames in chapter coordinates, for the pen's hit-testing.
+    @State private var penGeometry = PenGeometry()
 
     struct PendingPenMark: Equatable {
         let verse: Int
         let range: ClosedRange<Int>
     }
 
-    private static let penSpace = "penSpace"
+    /// The verse row's content sits inset by its own padding; drag locations
+    /// (row-local) shift by this to land in word-frame coordinates.
+    private static let rowContentInset = CGPoint(x: 6, y: 2)
+    /// Space the verse rows measure themselves in; matches the pen
+    /// recognizer's anchor view exactly.
+    private static let chapterSpace = "chapterSpace"
 
     private var theme: ReaderTheme { ReaderTheme(rawValue: themeRaw) ?? .ivory }
 
@@ -92,6 +102,8 @@ struct ReaderView: View {
             .onChange(of: scripture.location) {
                 clearSelection()
                 clearPenMarking()
+                // Old chapter's row frames must not hit-test the new one.
+                penGeometry.rowFrames = [:]
                 // The study breadcrumb survives its own jump, then dissolves
                 // on any further navigation — it never lingers.
                 scripture.noteLocationChanged()
@@ -118,10 +130,16 @@ struct ReaderView: View {
                 }
                 .padding(.horizontal, 24)
                 .padding(.vertical, 16)
+                // The pen recognizer rides on the UIScrollView itself and
+                // reports finger positions in this exact space.
+                .background(PenGestureInstaller(
+                    lock: scrollLock,
+                    onBegan: penBegan(at:),
+                    onMoved: penMoved(to:),
+                    onLifted: penLifted
+                ))
+                .coordinateSpace(name: Self.chapterSpace)
             }
-            // Shared space for pen marking: word frames and the drag's finger
-            // position are compared in these coordinates.
-            .coordinateSpace(name: Self.penSpace)
             // Licensed translations stream through the backend; the session
             // cache makes flipping back and forth instant after the first look.
             .task(id: "\(scripture.translation)|\(scripture.location.osis).\(scripture.location.chapter)") {
@@ -134,6 +152,7 @@ struct ReaderView: View {
             }
             .gesture(
                 DragGesture(minimumDistance: 60).onEnded { value in
+                    guard markingVerse == nil else { return } // pen strokes never flip chapters
                     if value.translation.width < -60 { scripture.goToNextChapter() }
                     if value.translation.width > 60 { scripture.goToPreviousChapter() }
                 }
@@ -252,12 +271,24 @@ struct ReaderView: View {
                     showVerseNumber: showVerseNumbers,
                     fontSize: scriptureSize,
                     lineSpacing: lineSpacing,
-                    theme: theme,
-                    marks: penMarks,
-                    liveRange: isMarking ? (markingRange ?? pendingMark?.range) : nil,
-                    seed: penSeed(verse: verse.v),
-                    coordinateSpace: Self.penSpace
+                    theme: theme
                 )
+                // Resolve each word's bounds once, draw the ink behind the
+                // text from them, and pass the same frames up for the drag's
+                // hit-testing — one source of truth for both.
+                .backgroundPreferenceValue(WordAnchorsKey.self) { anchors in
+                    GeometryReader { geo in
+                        let frames = anchors.mapValues { geo[$0] }
+                        PenInk(
+                            theme: theme,
+                            seed: penSeed(verse: verse.v),
+                            marks: penMarks,
+                            liveRange: isMarking ? (markingRange ?? pendingMark?.range) : nil,
+                            frames: frames
+                        )
+                        .preference(key: WordFramesKey.self, value: frames)
+                    }
+                }
                 .onPreferenceChange(WordFramesKey.self) { frames in
                     if markingVerse == verse.v { wordFrames = frames }
                 }
@@ -298,8 +329,15 @@ struct ReaderView: View {
         }
         .animation(.easeOut(duration: 0.15), value: markingVerse)
         .contentShape(Rectangle())
+        // Row frames feed the UIKit pen's hit-testing. Written to a plain
+        // class so publishing them never invalidates any view.
+        .background(
+            GeometryReader { geo in
+                let _ = penGeometry.rowFrames[verse.v] = geo.frame(in: .named(Self.chapterSpace))
+                Color.clear
+            }
+        )
         .onTapGesture { toggleVerse(verse.v) }
-        .gesture(penGesture(verse))
         .accessibilityLabel("Verse \(verse.v). \(verse.t)")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
@@ -321,9 +359,11 @@ struct ReaderView: View {
         return hash
     }
 
-    /// Arm the pen on this verse: word layout on, frames flowing, one haptic.
+    /// Arm the pen on this verse: word layout on, frames flowing, scrolling
+    /// frozen under the finger, one haptic.
     private func liftPen(on verse: BibleVerse) {
         guard markingVerse != verse.v else { return }
+        scrollLock.lock()
         pendingMark = nil
         markingVerse = verse.v
         markingAnchor = nil
@@ -332,45 +372,55 @@ struct ReaderView: View {
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
     }
 
-    private func penGesture(_ verse: BibleVerse) -> some Gesture {
-        LongPressGesture(minimumDuration: 0.35)
-            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.penSpace)))
-            .onChanged { value in
-                switch value {
-                case .second(true, nil):
-                    // The hold completed — the pen lifts. (`.first(true)` is
-                    // merely finger-down; acting there armed the pen too early
-                    // and never at the right moment.) The row flips to word
-                    // layout and starts reporting word frames for the drag.
-                    liftPen(on: verse)
-                case .second(true, let drag?):
-                    liftPen(on: verse) // some runs skip the `.second(_, nil)` step
-                    guard let index = wordIndex(at: drag.location) else { return }
-                    if markingAnchor == nil { markingAnchor = index }
-                    let anchor = markingAnchor ?? index
-                    let range = min(anchor, index)...max(anchor, index)
-                    if range != markingRange {
-                        markingRange = range
-                        UISelectionFeedbackGenerator().selectionChanged()
-                    }
-                default:
-                    break
-                }
-            }
-            .onEnded { _ in
-                guard markingVerse == verse.v else { return }
-                if let range = markingRange {
-                    pendingMark = PendingPenMark(verse: verse.v, range: range)
-                } else {
-                    // Held but never painted a word: quietly stand down.
-                    clearPenMarking()
-                }
-            }
+    /// UIKit pen callbacks (see PenGestureInstaller): the hold completed on
+    /// some point in the chapter — find the verse under the finger and arm.
+    private func penBegan(at point: CGPoint) {
+        guard let verseNumber = penGeometry.verse(at: point),
+              let verse = displayedVerses?.first(where: { $0.v == verseNumber })
+        else { return }
+        liftPen(on: verse)
+        // Word frames arrive one layout pass after the row flips to the word
+        // layout; then the word already under the finger paints immediately.
+        DispatchQueue.main.async { penMoved(to: point) }
+    }
+
+    private func penMoved(to point: CGPoint) {
+        guard let verseNumber = markingVerse, pendingMark == nil,
+              let rowFrame = penGeometry.rowFrames[verseNumber]
+        else { return }
+        let rowLocal = CGPoint(x: point.x - rowFrame.minX, y: point.y - rowFrame.minY)
+        guard let index = wordIndex(at: rowLocal) else { return }
+        if markingAnchor == nil { markingAnchor = index }
+        let anchor = markingAnchor ?? index
+        let range = min(anchor, index)...max(anchor, index)
+        if range != markingRange {
+            markingRange = range
+            UISelectionFeedbackGenerator().selectionChanged()
+        }
+    }
+
+    /// Lift or cancellation — both release the scroll lock, guaranteed.
+    private func penLifted() {
+        guard pendingMark == nil else { return }
+        guard let verseNumber = markingVerse else {
+            scrollLock.unlock()
+            return
+        }
+        if let range = markingRange {
+            pendingMark = PendingPenMark(verse: verseNumber, range: range)
+            scrollLock.unlock()
+        } else {
+            // Held but never painted a word: quietly stand down.
+            clearPenMarking()
+        }
     }
 
     /// The word under the finger, or the nearest one — dragging through a
-    /// word gap or between lines keeps painting smoothly.
-    private func wordIndex(at point: CGPoint) -> Int? {
+    /// word gap or between lines keeps painting smoothly. Input is in the
+    /// row's local space; word frames are in the row content's space.
+    private func wordIndex(at rowPoint: CGPoint) -> Int? {
+        let point = CGPoint(x: rowPoint.x - Self.rowContentInset.x,
+                            y: rowPoint.y - Self.rowContentInset.y)
         if let hit = wordFrames.first(where: { $0.value.insetBy(dx: -3, dy: -4).contains(point) }) {
             return hit.key
         }
@@ -387,6 +437,7 @@ struct ReaderView: View {
     }
 
     private func clearPenMarking() {
+        scrollLock.unlock()
         markingVerse = nil
         markingAnchor = nil
         markingRange = nil
@@ -406,20 +457,16 @@ struct ReaderView: View {
     }
 
     /// After the finger lifts: pick the ink. Lives in the floating-bar slot.
+    /// No verse label — the dashed outline already shows where the ink goes.
     private func penStyleChooser(_ pending: PendingPenMark) -> some View {
-        HStack(spacing: 12) {
-            Text("Verse \(pending.verse)")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(theme.text)
-                .lineLimit(1)
-
-            Spacer(minLength: 0)
-
+        HStack(spacing: 10) {
             Button {
                 savePenMark(pending, style: .marker)
             } label: {
                 Label("Marker", systemImage: "highlighter")
                     .font(.system(size: 14, weight: .medium))
+                    .lineLimit(1)
+                    .fixedSize()
             }
             .buttonStyle(.borderedProminent)
             .tint(Brand.hunter)
@@ -429,9 +476,13 @@ struct ReaderView: View {
             } label: {
                 Label("Underline", systemImage: "underline")
                     .font(.system(size: 14, weight: .medium))
+                    .lineLimit(1)
+                    .fixedSize()
             }
             .buttonStyle(.bordered)
             .tint(Brand.hunter)
+
+            Spacer(minLength: 0)
 
             Button {
                 clearPenMarking()

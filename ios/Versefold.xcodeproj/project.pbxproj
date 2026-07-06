@@ -13,6 +13,7 @@
 		4D8775D74E0355770E012594 /* ScriptureStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A58D9AB2ADE0C13723D931E /* ScriptureStore.swift */; };
 		4F8F303C38C8774565BA110A /* CardViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB6FAE051E43C1AA130B122D /* CardViews.swift */; };
 		66C7BB011DD7A40895266F83 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E06D80A385144444197AFB28 /* SettingsView.swift */; };
+		7000BF13D15AD40E50FB9F29 /* PenAndScrollTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1BBC3C96795D7329132D49A /* PenAndScrollTests.swift */; };
 		822D1ECAD9E913D71900B035 /* StudyViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2CD5E58B7FD41302070F267 /* StudyViews.swift */; };
 		884DA417F51B00F2BCDF6CF6 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E02A967500A2192A7085EE20 /* Assets.xcassets */; };
 		92ACA7E9C76152D89D32748C /* kjv in Resources */ = {isa = PBXBuildFile; fileRef = 77AD7B4BD7F7E6EA5F25D117 /* kjv */; };
@@ -24,6 +25,16 @@
 		E95E6033090D4EBA6BA65805 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = D212149746DF36D120314672 /* Theme.swift */; };
 		F1D1DE09FD25702CB9208472 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E2D825C087348FD729F9352 /* Models.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		BA17891CB03A06A5B067EFC0 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AA0B9F41A7299EA585EC85B0 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 81E9DFCADEEF6C1E655E57AD;
+			remoteInfo = Versefold;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		194F7E4008EEF7F214D2F368 /* PlusStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlusStore.swift; sourceTree = "<group>"; };
@@ -41,8 +52,10 @@
 		D212149746DF36D120314672 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		D45C75555769E5D41A8C9477 /* AIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIClient.swift; sourceTree = "<group>"; };
 		DB6FAE051E43C1AA130B122D /* CardViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardViews.swift; sourceTree = "<group>"; };
+		DD2C0A8AEAA1BE82B00BE1CB /* VersefoldUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = VersefoldUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E02A967500A2192A7085EE20 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		E06D80A385144444197AFB28 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		E1BBC3C96795D7329132D49A /* PenAndScrollTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PenAndScrollTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -50,8 +63,17 @@
 			isa = PBXGroup;
 			children = (
 				272EF97B87A0D4A422EBA183 /* Versefold.app */,
+				DD2C0A8AEAA1BE82B00BE1CB /* VersefoldUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		4DD5DD86FA7AD01277AE19C7 /* VersefoldUITests */ = {
+			isa = PBXGroup;
+			children = (
+				E1BBC3C96795D7329132D49A /* PenAndScrollTests.swift */,
+			);
+			path = VersefoldUITests;
 			sourceTree = "<group>";
 		};
 		705C51B8569455ACEF349B0C /* Versefold */ = {
@@ -81,6 +103,7 @@
 			children = (
 				77AD7B4BD7F7E6EA5F25D117 /* kjv */,
 				705C51B8569455ACEF349B0C /* Versefold */,
+				4DD5DD86FA7AD01277AE19C7 /* VersefoldUITests */,
 				38B1457C8704CAE8A6B25BD5 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -106,6 +129,24 @@
 			productReference = 272EF97B87A0D4A422EBA183 /* Versefold.app */;
 			productType = "com.apple.product-type.application";
 		};
+		C9FC43E5C838AA08A3C4123E /* VersefoldUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5BF0BA05830DFDE4093DCE21 /* Build configuration list for PBXNativeTarget "VersefoldUITests" */;
+			buildPhases = (
+				88FDD727BE832D36DE45B5BC /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				E3276E7D0F0A130AA6C92615 /* PBXTargetDependency */,
+			);
+			name = VersefoldUITests;
+			packageProductDependencies = (
+			);
+			productName = VersefoldUITests;
+			productReference = DD2C0A8AEAA1BE82B00BE1CB /* VersefoldUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -118,6 +159,11 @@
 					81E9DFCADEEF6C1E655E57AD = {
 						DevelopmentTeam = VFDP96W9C2;
 						ProvisioningStyle = Automatic;
+					};
+					C9FC43E5C838AA08A3C4123E = {
+						DevelopmentTeam = VFDP96W9C2;
+						ProvisioningStyle = Automatic;
+						TestTargetID = 81E9DFCADEEF6C1E655E57AD;
 					};
 				};
 			};
@@ -136,6 +182,7 @@
 			projectRoot = "";
 			targets = (
 				81E9DFCADEEF6C1E655E57AD /* Versefold */,
+				C9FC43E5C838AA08A3C4123E /* VersefoldUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -153,6 +200,14 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		88FDD727BE832D36DE45B5BC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7000BF13D15AD40E50FB9F29 /* PenAndScrollTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		C80BF2AE8030AB93F915D619 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -176,7 +231,31 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		E3276E7D0F0A130AA6C92615 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 81E9DFCADEEF6C1E655E57AD /* Versefold */;
+			targetProxy = BA17891CB03A06A5B067EFC0 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		17979878844BD59381D058E8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.versefold.VersefoldUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Versefold;
+			};
+			name = Debug;
+		};
 		481A8B78D4C75DD54D938C71 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -229,7 +308,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 7;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = VFDP96W9C2;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -293,7 +372,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 7;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = VFDP96W9C2;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -346,6 +425,22 @@
 			};
 			name = Release;
 		};
+		FF82A0B3C2E28551DF0DB9A9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.versefold.VersefoldUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Versefold;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -354,6 +449,15 @@
 			buildConfigurations = (
 				481A8B78D4C75DD54D938C71 /* Debug */,
 				A289AA4DE33D4F3D8F9B5A1B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		5BF0BA05830DFDE4093DCE21 /* Build configuration list for PBXNativeTarget "VersefoldUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				17979878844BD59381D058E8 /* Debug */,
+				FF82A0B3C2E28551DF0DB9A9 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

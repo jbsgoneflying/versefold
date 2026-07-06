@@ -15,7 +15,7 @@ settings:
     DEVELOPMENT_TEAM: VFDP96W9C2
     CODE_SIGN_STYLE: Automatic
     MARKETING_VERSION: "0.1.0"
-    CURRENT_PROJECT_VERSION: "4"
+    CURRENT_PROJECT_VERSION: "7"
     INFOPLIST_KEY_UILaunchScreen_Generation: YES
     # Standard HTTPS only — answers the export-compliance question once,
     # instead of on every TestFlight upload.
@@ -42,3 +42,22 @@ targets:
         # iPhone-only for v1 (iPad is a Phase 5 expansion). Portrait-only is
         # fine for iPhone, but iPad requires all orientations — so exclude it.
         TARGETED_DEVICE_FAMILY: "1"
+  # Drives the real UI in the simulator: swipes to scroll, hold-drags the pen.
+  # Exists because gesture arbitration bugs are invisible to type checks.
+  VersefoldUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [VersefoldUITests]
+    dependencies:
+      - target: Versefold
+schemes:
+  Versefold:
+    build:
+      targets:
+        Versefold: all
+        VersefoldUITests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets: [VersefoldUITests]

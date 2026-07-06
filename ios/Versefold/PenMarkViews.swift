@@ -4,6 +4,11 @@ import SwiftUI
 /// drag can paint exact words, and saved marks can decorate them with a
 /// hand-drawn marker band or wavy underline — like ink in a paper Bible.
 ///
+/// The words publish their bounds as anchor preferences; the verse row
+/// resolves them and hands them to `PenInk`, which draws ONE continuous
+/// stroke per line of text (word frames merged into line runs), so a mark
+/// reads as a single sweep of the pen, never a row of per-word slabs.
+///
 /// Performance: this layout exists ONLY for verses that carry pen marks (or
 /// the one actively being marked). Everything else stays a single `Text`.
 
@@ -13,7 +18,7 @@ extension ReaderTheme {
     /// Classic soft highlighter on light pages; muted gold in the dark.
     var markerInk: Color {
         switch self {
-        case .ivory, .parchment: return Color(red: 0.98, green: 0.85, blue: 0.35).opacity(0.42)
+        case .ivory, .parchment: return Color(red: 0.99, green: 0.86, blue: 0.32).opacity(0.40)
         case .dark, .lowLight: return Color(red: 0.85, green: 0.70, blue: 0.28).opacity(0.30)
         }
     }
@@ -28,14 +33,123 @@ extension ReaderTheme {
     /// Provisional tint while the finger is still painting.
     var liveInk: Color {
         switch self {
-        case .ivory, .parchment: return Brand.hunter.opacity(0.18)
+        case .ivory, .parchment: return Brand.hunter.opacity(0.16)
         case .dark, .lowLight: return Color.white.opacity(0.14)
         }
     }
 }
 
-// MARK: - Word frames preference (drag hit-testing)
+// MARK: - Pen gesture (UIKit level)
 
+/// The pen lives in UIKit, not SwiftUI, for two verified-by-UI-test reasons:
+/// 1. Any SwiftUI long-press→drag sequence on the verse rows blocks the
+///    ScrollView's pan outright — the reader stops scrolling entirely.
+/// 2. `scrollDisabled(_:)` can't freeze the page mid-stroke: toggling it
+///    rebuilds the scroll view's gestures, cancelling the stroke itself.
+/// One `UILongPressGestureRecognizer` on the underlying UIScrollView solves
+/// both: it coexists natively with the pan (movement fails it, stillness arms
+/// it), keeps tracking the same finger while it paints, and the scroll freeze
+/// is a plain `isScrollEnabled` flip UIKit is happy to do mid-touch.
+final class ScrollLock {
+    weak var scrollView: UIScrollView?
+
+    func lock() { scrollView?.isScrollEnabled = false }
+    func unlock() { scrollView?.isScrollEnabled = true }
+}
+
+/// Verse-row frames in chapter-content coordinates, written by the rows as
+/// they lay out. A plain class: updates must never invalidate any view.
+final class PenGeometry {
+    var rowFrames: [Int: CGRect] = [:]
+
+    func verse(at point: CGPoint) -> Int? {
+        rowFrames.first { $0.value.contains(point) }?.key
+    }
+}
+
+/// Invisible helper placed as the chapter content's background: finds the
+/// enclosing UIScrollView, hands it to the lock, and installs the pen
+/// recognizer on it. Its own view doubles as the coordinate anchor — its
+/// bounds ARE the chapter content, so `location(in:)` matches the named
+/// coordinate space the verse rows measure themselves in.
+struct PenGestureInstaller: UIViewRepresentable {
+    let lock: ScrollLock
+    var onBegan: (CGPoint) -> Void
+    var onMoved: (CGPoint) -> Void
+    var onLifted: () -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    final class Coordinator: NSObject {
+        var onBegan: ((CGPoint) -> Void)?
+        var onMoved: ((CGPoint) -> Void)?
+        var onLifted: (() -> Void)?
+        weak var anchorView: UIView?
+        weak var installedOn: UIScrollView?
+
+        @objc func handlePen(_ recognizer: UILongPressGestureRecognizer) {
+            guard let anchor = anchorView else { return }
+            let point = recognizer.location(in: anchor)
+            switch recognizer.state {
+            case .began: onBegan?(point)
+            case .changed: onMoved?(point)
+            // A cancelled stroke is treated like a lift: finish or stand down.
+            case .ended, .cancelled, .failed: onLifted?()
+            default: break
+            }
+        }
+    }
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.isUserInteractionEnabled = false
+        view.isHidden = true
+        context.coordinator.anchorView = view
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        let coordinator = context.coordinator
+        coordinator.onBegan = onBegan
+        coordinator.onMoved = onMoved
+        coordinator.onLifted = onLifted
+        coordinator.anchorView = uiView
+        DispatchQueue.main.async { [weak uiView] in
+            var candidate = uiView?.superview
+            while let view = candidate {
+                if let scrollView = view as? UIScrollView {
+                    lock.scrollView = scrollView
+                    if coordinator.installedOn !== scrollView {
+                        let pen = UILongPressGestureRecognizer(
+                            target: coordinator, action: #selector(Coordinator.handlePen(_:))
+                        )
+                        pen.minimumPressDuration = 0.35
+                        pen.allowableMovement = 12
+                        // On recognition, kill the touch for SwiftUI so the
+                        // tap-to-select underneath never double-fires.
+                        pen.cancelsTouchesInView = true
+                        scrollView.addGestureRecognizer(pen)
+                        coordinator.installedOn = scrollView
+                    }
+                    return
+                }
+                candidate = view.superview
+            }
+        }
+    }
+}
+
+// MARK: - Word geometry preferences
+
+/// Word bounds as anchors — resolved by the verse row into its own space.
+struct WordAnchorsKey: PreferenceKey {
+    static let defaultValue: [Int: Anchor<CGRect>] = [:]
+    static func reduce(value: inout [Int: Anchor<CGRect>], nextValue: () -> [Int: Anchor<CGRect>]) {
+        value.merge(nextValue()) { _, new in new }
+    }
+}
+
+/// Resolved word frames (row space) — the reader hit-tests drags against these.
 struct WordFramesKey: PreferenceKey {
     static let defaultValue: [Int: CGRect] = [:]
     static func reduce(value: inout [Int: CGRect], nextValue: () -> [Int: CGRect]) {
@@ -43,7 +157,7 @@ struct WordFramesKey: PreferenceKey {
     }
 }
 
-// MARK: - Marked verse
+// MARK: - Marked verse (word flow that publishes word bounds)
 
 struct MarkedVerseText: View {
     let verseNumber: Int
@@ -52,16 +166,9 @@ struct MarkedVerseText: View {
     let fontSize: Double
     let lineSpacing: Double
     let theme: ReaderTheme
-    /// Saved marks on this verse (word ranges + style).
-    let marks: [(range: ClosedRange<Int>, style: PenStyle)]
-    /// Range currently being painted by the finger, if any.
-    let liveRange: ClosedRange<Int>?
-    /// Stable per-verse seed so the "ink" wobble never changes between renders.
-    let seed: Int
-    let coordinateSpace: String
 
     var body: some View {
-        WordFlowLayout(wordSpacing: fontSize * 0.30, lineSpacing: CGFloat(lineSpacing)) {
+        WordFlowLayout(wordSpacing: fontSize * 0.27, lineSpacing: CGFloat(lineSpacing)) {
             if showVerseNumber {
                 Text("\(verseNumber)")
                     .font(.system(size: max(11, fontSize * 0.55)))
@@ -69,107 +176,154 @@ struct MarkedVerseText: View {
                     .baselineOffset(4)
             }
             ForEach(words.indices, id: \.self) { index in
-                wordView(index)
+                Text(words[index])
+                    .font(.scripture(size: fontSize))
+                    .foregroundStyle(theme.text)
+                    .anchorPreference(key: WordAnchorsKey.self, value: .bounds) { [index: $0] }
             }
-        }
-    }
-
-    private func wordView(_ index: Int) -> some View {
-        Text(words[index])
-            .font(.scripture(size: fontSize))
-            .foregroundStyle(theme.text)
-            .background(alignment: .center) { markerBand(index) }
-            .overlay(alignment: .bottom) { underline(index) }
-            .background(
-                GeometryReader { geo in
-                    Color.clear.preference(
-                        key: WordFramesKey.self,
-                        value: [index: geo.frame(in: .named(coordinateSpace))]
-                    )
-                }
-            )
-    }
-
-    // Deterministic 0...1 wobble per (seed, word) — the hand-drawn feel.
-    private func wobble(_ index: Int, _ salt: Int) -> CGFloat {
-        let x = sin(Double(seed &* 131 &+ index &* 97 &+ salt &* 53) * 12.9898) * 43758.5453
-        return CGFloat(x - x.rounded(.down))
-    }
-
-    private func mark(covering index: Int, style: PenStyle) -> ClosedRange<Int>? {
-        marks.first { $0.style == style && $0.range.contains(index) }?.range
-    }
-
-    @ViewBuilder
-    private func markerBand(_ index: Int) -> some View {
-        let saved = mark(covering: index, style: .marker)
-        let live = liveRange?.contains(index) == true
-        if saved != nil || live {
-            let range = saved ?? liveRange!
-            let isStart = index == range.lowerBound
-            let isEnd = index == range.upperBound
-            let gap = fontSize * 0.30
-            // One continuous band: each word's slab bleeds into the word gap,
-            // rounded only at the stroke's ends. Slight height/offset wobble
-            // keeps it looking drawn, not printed.
-            UnevenRoundedRectangle(
-                topLeadingRadius: isStart ? 5 : 0,
-                bottomLeadingRadius: isStart ? 6 : 0,
-                bottomTrailingRadius: isEnd ? 5 : 0,
-                topTrailingRadius: isEnd ? 6 : 0
-            )
-            .fill(saved != nil ? theme.markerInk : theme.liveInk)
-            .padding(.leading, isStart ? -2 : -gap / 2 - 1)
-            .padding(.trailing, isEnd ? -2 : -gap / 2 - 1)
-            .padding(.vertical, -1.5 - wobble(index, 1) * 1.5)
-            .offset(y: (wobble(index, 2) - 0.5) * 1.6)
-            .allowsHitTesting(false)
-        }
-    }
-
-    @ViewBuilder
-    private func underline(_ index: Int) -> some View {
-        if let range = mark(covering: index, style: .underline) {
-            let isStart = index == range.lowerBound
-            let isEnd = index == range.upperBound
-            let gap = fontSize * 0.30
-            WavyUnderline(seed: seed &+ index, phase: index)
-                .stroke(theme.underlineInk, style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
-                .frame(height: 4)
-                .padding(.leading, isStart ? 0 : -gap / 2 - 1)
-                .padding(.trailing, isEnd ? 0 : -gap / 2 - 1)
-                .offset(y: 3 + (wobble(index, 3) - 0.5) * 1.2)
-                .allowsHitTesting(false)
         }
     }
 }
 
-/// A gently uneven line — a hand can't draw straight, and shouldn't here.
-struct WavyUnderline: Shape {
-    let seed: Int
-    let phase: Int
+// MARK: - Ink
 
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let midY = rect.midY
-        func w(_ salt: Int) -> CGFloat {
-            let x = sin(Double(seed &* 89 &+ salt &* 71) * 78.233) * 43758.5453
-            return CGFloat(x - x.rounded(.down)) - 0.5
+/// Draws every saved stroke plus the live one from resolved word frames.
+struct PenInk: View {
+    let theme: ReaderTheme
+    /// Stable per-verse seed so the "ink" wobble never changes between renders.
+    let seed: Int
+    /// Saved marks on this verse (word ranges + style).
+    let marks: [(range: ClosedRange<Int>, style: PenStyle)]
+    /// Range currently being painted by the finger, if any.
+    let liveRange: ClosedRange<Int>?
+    /// Word frames in the same space as this view's bounds.
+    let frames: [Int: CGRect]
+
+    var body: some View {
+        Canvas { context, _ in
+            for mark in marks {
+                for (i, run) in lineRuns(mark.range).enumerated() {
+                    switch mark.style {
+                    case .marker:
+                        drawMarker(context, run: run, color: theme.markerInk, salt: i &+ mark.range.lowerBound)
+                    case .underline:
+                        drawUnderline(context, run: run, salt: i &+ mark.range.lowerBound)
+                    }
+                }
+            }
+            if let live = liveRange {
+                for (i, run) in lineRuns(live).enumerated() {
+                    drawMarker(context, run: run, color: theme.liveInk, salt: i)
+                }
+            }
         }
-        path.move(to: CGPoint(x: rect.minX, y: midY + w(1) * 1.4))
-        let step = max(rect.width / 3, 6)
-        var x = rect.minX
-        var salt = 2
-        while x < rect.maxX {
-            let next = min(x + step, rect.maxX)
-            path.addQuadCurve(
-                to: CGPoint(x: next, y: midY + w(salt) * 1.6),
-                control: CGPoint(x: (x + next) / 2, y: midY + w(salt + 1) * 2.2)
+        .allowsHitTesting(false)
+    }
+
+    /// Merge the frames of a word range into one rect per line of text, so
+    /// each line gets a single unbroken stroke.
+    private func lineRuns(_ range: ClosedRange<Int>) -> [CGRect] {
+        var runs: [CGRect] = []
+        var current: CGRect?
+        for index in range {
+            guard let frame = frames[index] else { continue }
+            if let run = current, abs(frame.midY - run.midY) < run.height * 0.6 {
+                current = run.union(frame)
+            } else {
+                if let run = current { runs.append(run) }
+                current = frame
+            }
+        }
+        if let run = current { runs.append(run) }
+        return runs
+    }
+
+    // Deterministic 0...1 wobble — the hand-drawn feel, stable across renders.
+    private func wobble(_ salt: Int) -> CGFloat {
+        let x = sin(Double(seed &* 131 &+ salt &* 97) * 12.9898) * 43758.5453
+        return CGFloat(x - x.rounded(.down))
+    }
+
+    private func jitter(_ salt: Int, _ amplitude: CGFloat) -> CGFloat {
+        (wobble(salt) - 0.5) * amplitude
+    }
+
+    /// One sweep of a chisel-tip marker: rounded ends, gently uneven top and
+    /// bottom edges, and a whisper of rotation. Drawn once per line run.
+    private func drawMarker(_ context: GraphicsContext, run: CGRect, color: Color, salt: Int) {
+        let band = run.insetBy(dx: -3.5, dy: -1)
+        var ctx = context
+        ctx.translateBy(x: band.midX, y: band.midY)
+        ctx.rotate(by: .degrees(Double(jitter(salt &* 7 &+ 1, 0.7))))
+        ctx.translateBy(x: -band.midX, y: -band.midY)
+        ctx.fill(markerPath(in: band, salt: salt), with: .color(color))
+    }
+
+    private func markerPath(in r: CGRect, salt: Int) -> Path {
+        var p = Path()
+        let endRadius = r.height / 2
+        // Short runs (one small word) don't have room for wavy edges.
+        guard r.width > endRadius * 2 + 24 else {
+            p.addRoundedRect(in: r, cornerSize: CGSize(width: endRadius * 0.7, height: endRadius * 0.7))
+            return p
+        }
+        func j(_ s: Int) -> CGFloat { jitter(salt &* 31 &+ s, 2.2) }
+        let left = r.minX + endRadius, right = r.maxX - endRadius
+        p.move(to: CGPoint(x: left, y: r.minY + j(1)))
+        // Top edge in two loose curves.
+        p.addQuadCurve(
+            to: CGPoint(x: r.midX, y: r.minY + j(2)),
+            control: CGPoint(x: r.minX + r.width * 0.28, y: r.minY + j(3) * 1.4)
+        )
+        p.addQuadCurve(
+            to: CGPoint(x: right, y: r.minY + j(4)),
+            control: CGPoint(x: r.minX + r.width * 0.74, y: r.minY + j(5) * 1.4)
+        )
+        // Rounded lift-off.
+        p.addQuadCurve(
+            to: CGPoint(x: right, y: r.maxY + j(6)),
+            control: CGPoint(x: r.maxX + endRadius * 0.8, y: r.midY)
+        )
+        // Bottom edge back.
+        p.addQuadCurve(
+            to: CGPoint(x: r.midX, y: r.maxY + j(7)),
+            control: CGPoint(x: r.minX + r.width * 0.72, y: r.maxY + j(8) * 1.4)
+        )
+        p.addQuadCurve(
+            to: CGPoint(x: left, y: r.maxY + j(9)),
+            control: CGPoint(x: r.minX + r.width * 0.26, y: r.maxY + j(10) * 1.4)
+        )
+        // Rounded landing.
+        p.addQuadCurve(
+            to: CGPoint(x: left, y: r.minY + j(1)),
+            control: CGPoint(x: r.minX - endRadius * 0.8, y: r.midY)
+        )
+        p.closeSubpath()
+        return p
+    }
+
+    /// A long, gently drifting line just under the words — one stroke per
+    /// line run, long wavelength, so it reads as a steady hand, not a scribble.
+    private func drawUnderline(_ context: GraphicsContext, run: CGRect, salt: Int) {
+        let baseline = run.maxY - run.height * 0.10
+        func j(_ s: Int, _ amp: CGFloat) -> CGFloat { jitter(salt &* 53 &+ s, amp) }
+
+        var p = Path()
+        p.move(to: CGPoint(x: run.minX - 1.5, y: baseline + j(1, 1.4)))
+        let segments = max(Int(run.width / 70), 1)
+        for s in 0..<segments {
+            let toX = run.minX + run.width * CGFloat(s + 1) / CGFloat(segments)
+            let controlX = run.minX + run.width * (CGFloat(s) + 0.5) / CGFloat(segments)
+            p.addQuadCurve(
+                to: CGPoint(x: toX + (s == segments - 1 ? 1.5 : 0), y: baseline + j(s * 2 + 2, 1.6)),
+                control: CGPoint(x: controlX, y: baseline + j(s * 2 + 3, 2.6))
             )
-            x = next
-            salt += 2
         }
-        return path
+        context.stroke(
+            p,
+            with: .color(theme.underlineInk),
+            style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round)
+        )
     }
 }
 
