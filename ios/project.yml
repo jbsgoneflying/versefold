@@ -15,7 +15,7 @@ settings:
     DEVELOPMENT_TEAM: VFDP96W9C2
     CODE_SIGN_STYLE: Automatic
     MARKETING_VERSION: "0.1.0"
-    CURRENT_PROJECT_VERSION: "3"
+    CURRENT_PROJECT_VERSION: "4"
     INFOPLIST_KEY_UILaunchScreen_Generation: YES
     # Standard HTTPS only — answers the export-compliance question once,
     # instead of on every TestFlight upload.
