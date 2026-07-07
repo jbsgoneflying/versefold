@@ -1,3 +1,4 @@
+import { AppStoreBadge } from "./AppStoreBadge";
 import { Button } from "./ui/Button";
 import { Reveal } from "./ui/Reveal";
 
@@ -17,7 +18,7 @@ export function Hero() {
       <div className="container-page grid items-center gap-12 pt-12 pb-24 md:grid-cols-2 md:gap-10 md:pt-20 md:pb-28 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12">
         {/* Copy */}
         <Reveal className="max-w-xl">
-          <span className="eyebrow">Versefold for iOS</span>
+          <span className="eyebrow">Now on the App Store for iPhone</span>
           <h1 className="mt-5 text-balance text-[2.6rem] leading-[1.05] sm:text-6xl lg:text-[4rem] lg:leading-[1.02]">
             The Bible app for less phone and more Word.
           </h1>
@@ -26,10 +27,8 @@ export function Hero() {
             No feeds. No social layer. No streak pressure. Just a clean place to
             read, understand, remember, and keep Scripture before you.
           </p>
-          <div className="mt-9 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:gap-5">
-            <Button href="#early-access" className="w-full sm:w-auto">
-              Join early access
-            </Button>
+          <div className="mt-9 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-6">
+            <AppStoreBadge />
             <Button
               href="#how-it-works"
               variant="secondary"
@@ -39,7 +38,7 @@ export function Hero() {
             </Button>
           </div>
           <p className="mt-7 text-sm text-[var(--color-stone)]">
-            Currently in early development. No spam, no noise.
+            Free to read. No spam, no noise.
           </p>
         </Reveal>
 

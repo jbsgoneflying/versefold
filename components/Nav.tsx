@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { APP_STORE_URL } from "./AppStoreBadge";
 import { Logo } from "./Logo";
 import { Button } from "./ui/Button";
 
 const links = [
   { href: "#features", label: "Features" },
   { href: "#how-it-works", label: "How it works" },
-  { href: "#early-access", label: "Early access" },
+  { href: "#get-the-app", label: "Get the app" },
 ];
 
 export function Nav() {
@@ -54,15 +55,15 @@ export function Nav() {
               </li>
             ))}
           </ul>
-          <Button href="#early-access" size="sm">
-            Join early access
+          <Button href={APP_STORE_URL} size="sm">
+            Download
           </Button>
         </div>
 
         {/* Mobile: logo + compact CTA only */}
         <div className="md:hidden">
-          <Button href="#early-access" size="sm">
-            Join early access
+          <Button href={APP_STORE_URL} size="sm">
+            Download
           </Button>
         </div>
       </nav>

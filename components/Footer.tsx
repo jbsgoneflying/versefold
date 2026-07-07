@@ -36,7 +36,16 @@ export function Footer() {
         </div>
 
         <div className="mt-10 flex flex-col gap-2 border-t border-[color-mix(in_srgb,var(--color-ivory)_12%,transparent)] pt-6 text-xs text-[color-mix(in_srgb,var(--color-ivory)_50%,transparent)] sm:flex-row sm:items-center sm:justify-between">
-          <p>&copy; 2026 Versefold. All rights reserved.</p>
+          <p>
+            &copy; 2026 Versefold. All rights reserved. Built by{" "}
+            <a
+              href="https://joshuabsmith.io"
+              className="underline underline-offset-2 transition-colors hover:text-[var(--color-ivory)]"
+            >
+              Joshua b. Smith
+            </a>
+            .
+          </p>
           <p className="font-serif text-sm italic text-[color-mix(in_srgb,var(--color-ivory)_66%,transparent)]">
             The Word before the phone.
           </p>

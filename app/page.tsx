@@ -7,7 +7,8 @@ import { GuidedStudy } from "@/components/GuidedStudy";
 import { ConfessionCards } from "@/components/ConfessionCards";
 import { StudyLenses } from "@/components/StudyLenses";
 import { Restraint } from "@/components/Restraint";
-import { EarlyAccess } from "@/components/EarlyAccess";
+import { Builder } from "@/components/Builder";
+import { GetTheApp } from "@/components/GetTheApp";
 import { Footer } from "@/components/Footer";
 
 export default function Home() {
@@ -23,7 +24,8 @@ export default function Home() {
         <ConfessionCards />
         <StudyLenses />
         <Restraint />
-        <EarlyAccess />
+        <Builder />
+        <GetTheApp />
       </main>
       <Footer />
     </>

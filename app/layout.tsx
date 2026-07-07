@@ -17,7 +17,7 @@ const sans = Inter({
 
 const siteUrl = "https://versefold.app";
 const description =
-  "Versefold is a quiet Scripture reading and study app built around the pure Word. No feeds, no social layer, no streak pressure. A clean place to read, understand, remember, and keep Scripture before you.";
+  "Versefold is a quiet Scripture reading and study app built around the pure Word. No feeds, no social layer, no streak pressure. A clean place to read, understand, remember, and keep Scripture before you. Now on the App Store for iPhone.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -37,6 +37,8 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "Versefold" }],
   alternates: { canonical: siteUrl },
+  // iOS Safari Smart App Banner — the native install strip above the page.
+  itunes: { appId: "6788062359" },
   openGraph: {
     type: "website",
     url: siteUrl,
