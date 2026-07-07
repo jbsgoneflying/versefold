@@ -18,6 +18,7 @@
 		884DA417F51B00F2BCDF6CF6 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E02A967500A2192A7085EE20 /* Assets.xcassets */; };
 		92ACA7E9C76152D89D32748C /* kjv in Resources */ = {isa = PBXBuildFile; fileRef = 77AD7B4BD7F7E6EA5F25D117 /* kjv */; };
 		A262C9357172B5DBA7F811FC /* PlusStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 194F7E4008EEF7F214D2F368 /* PlusStore.swift */; };
+		A2C0A5AC01DA356CC033AB73 /* AppStoreScreenshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12C03B50616A5585B1B85976 /* AppStoreScreenshotTests.swift */; };
 		B942CD263BD21F2090F108B2 /* VersefoldApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7595DCCBB4FC761583842C8A /* VersefoldApp.swift */; };
 		BF53FB0F05A3B408434EAE9C /* ReaderViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7213FD761EDCF11C9CD1F369 /* ReaderViews.swift */; };
 		C08D5790FB3AA76805429764 /* NoteViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87BAC01B57233CF1980C1F90 /* NoteViews.swift */; };
@@ -39,6 +40,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		12C03B50616A5585B1B85976 /* AppStoreScreenshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStoreScreenshotTests.swift; sourceTree = "<group>"; };
 		194F7E4008EEF7F214D2F368 /* PlusStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlusStore.swift; sourceTree = "<group>"; };
 		22E3205740809A4E72C61BEB /* SplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashView.swift; sourceTree = "<group>"; };
 		272EF97B87A0D4A422EBA183 /* Versefold.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Versefold.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -76,6 +78,7 @@
 		4DD5DD86FA7AD01277AE19C7 /* VersefoldUITests */ = {
 			isa = PBXGroup;
 			children = (
+				12C03B50616A5585B1B85976 /* AppStoreScreenshotTests.swift */,
 				E1BBC3C96795D7329132D49A /* PenAndScrollTests.swift */,
 			);
 			path = VersefoldUITests;
@@ -212,6 +215,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A2C0A5AC01DA356CC033AB73 /* AppStoreScreenshotTests.swift in Sources */,
 				7000BF13D15AD40E50FB9F29 /* PenAndScrollTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
