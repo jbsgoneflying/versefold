@@ -7,9 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		2FEB8A65200D4A5B6C3ACD70 /* GuideTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C5D882D0952953E35E358C5 /* GuideTests.swift */; };
 		3C2D3C22BA553A4B037530ED /* PenMarkViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95EB4F4D90AEBC87DC35689A /* PenMarkViews.swift */; };
 		3C56E2483064E226E453B02D /* LibraryViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9509912334D01DC62D6FCFD7 /* LibraryViews.swift */; };
 		4174D19A505DCB972665E5EB /* UnfoldViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 562410D47B92E163CAE30B08 /* UnfoldViews.swift */; };
+		41C6A2022FB22BE24D458C9A /* GuideViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E045AFB04B3EE169724E639 /* GuideViews.swift */; };
 		4D8775D74E0355770E012594 /* ScriptureStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A58D9AB2ADE0C13723D931E /* ScriptureStore.swift */; };
 		4F8F303C38C8774565BA110A /* CardViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB6FAE051E43C1AA130B122D /* CardViews.swift */; };
 		66C7BB011DD7A40895266F83 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E06D80A385144444197AFB28 /* SettingsView.swift */; };
@@ -45,12 +47,14 @@
 		22E3205740809A4E72C61BEB /* SplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashView.swift; sourceTree = "<group>"; };
 		272EF97B87A0D4A422EBA183 /* Versefold.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Versefold.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2E2D825C087348FD729F9352 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		4E045AFB04B3EE169724E639 /* GuideViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuideViews.swift; sourceTree = "<group>"; };
 		562410D47B92E163CAE30B08 /* UnfoldViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnfoldViews.swift; sourceTree = "<group>"; };
 		6A58D9AB2ADE0C13723D931E /* ScriptureStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptureStore.swift; sourceTree = "<group>"; };
 		7213FD761EDCF11C9CD1F369 /* ReaderViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderViews.swift; sourceTree = "<group>"; };
 		7595DCCBB4FC761583842C8A /* VersefoldApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersefoldApp.swift; sourceTree = "<group>"; };
 		77AD7B4BD7F7E6EA5F25D117 /* kjv */ = {isa = PBXFileReference; lastKnownFileType = folder; name = kjv; path = Versefold/Resources/kjv; sourceTree = SOURCE_ROOT; };
 		87BAC01B57233CF1980C1F90 /* NoteViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteViews.swift; sourceTree = "<group>"; };
+		8C5D882D0952953E35E358C5 /* GuideTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuideTests.swift; sourceTree = "<group>"; };
 		9490B81D3C278751D4F953F4 /* LibraryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryStore.swift; sourceTree = "<group>"; };
 		9509912334D01DC62D6FCFD7 /* LibraryViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryViews.swift; sourceTree = "<group>"; };
 		95EB4F4D90AEBC87DC35689A /* PenMarkViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PenMarkViews.swift; sourceTree = "<group>"; };
@@ -79,6 +83,7 @@
 			isa = PBXGroup;
 			children = (
 				12C03B50616A5585B1B85976 /* AppStoreScreenshotTests.swift */,
+				8C5D882D0952953E35E358C5 /* GuideTests.swift */,
 				E1BBC3C96795D7329132D49A /* PenAndScrollTests.swift */,
 			);
 			path = VersefoldUITests;
@@ -90,6 +95,7 @@
 				D45C75555769E5D41A8C9477 /* AIClient.swift */,
 				E02A967500A2192A7085EE20 /* Assets.xcassets */,
 				DB6FAE051E43C1AA130B122D /* CardViews.swift */,
+				4E045AFB04B3EE169724E639 /* GuideViews.swift */,
 				F0AA8501E93479E3A24AE182 /* Info.plist */,
 				9490B81D3C278751D4F953F4 /* LibraryStore.swift */,
 				9509912334D01DC62D6FCFD7 /* LibraryViews.swift */,
@@ -216,6 +222,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A2C0A5AC01DA356CC033AB73 /* AppStoreScreenshotTests.swift in Sources */,
+				2FEB8A65200D4A5B6C3ACD70 /* GuideTests.swift in Sources */,
 				7000BF13D15AD40E50FB9F29 /* PenAndScrollTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -226,6 +233,7 @@
 			files = (
 				E78EEC932E0D01041BB1E9D0 /* AIClient.swift in Sources */,
 				4F8F303C38C8774565BA110A /* CardViews.swift in Sources */,
+				41C6A2022FB22BE24D458C9A /* GuideViews.swift in Sources */,
 				E5148964908215D195A048FE /* LibraryStore.swift in Sources */,
 				3C56E2483064E226E453B02D /* LibraryViews.swift in Sources */,
 				F1D1DE09FD25702CB9208472 /* Models.swift in Sources */,
@@ -323,7 +331,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 10;
+				CURRENT_PROJECT_VERSION = 11;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = VFDP96W9C2;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -386,7 +394,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 10;
+				CURRENT_PROJECT_VERSION = 11;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = VFDP96W9C2;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;

@@ -11,6 +11,9 @@ struct ReaderView: View {
     @AppStorage("lineSpacing") private var lineSpacing = 8.0
     @AppStorage("showVerseNumbers") private var showVerseNumbers = true
     @AppStorage("focusMode") private var focusMode = false
+    /// First-run guide: shows itself once, then lives in the menu forever.
+    @AppStorage("hasSeenGuide") private var hasSeenGuide = false
+    @State private var showGuide = false
 
     @State private var selectedVerses: Set<Int> = []
     @State private var showBookPicker = false
@@ -98,6 +101,10 @@ struct ReaderView: View {
             .sheet(item: $activeSheet) { sheet in
                 passageSheetView(sheet)
             }
+            .sheet(isPresented: $showGuide, onDismiss: { hasSeenGuide = true }) {
+                GuideView()
+            }
+            .onAppear(perform: maybePresentFirstRunGuide)
             .onChange(of: scripture.location) {
                 clearSelection()
                 clearPenMarking()
@@ -648,6 +655,9 @@ struct ReaderView: View {
                     Label("Library", systemImage: "books.vertical")
                 }
                 Divider()
+                Button { showGuide = true } label: {
+                    Label("How to use Versefold", systemImage: "questionmark.circle")
+                }
                 Button { showSettings = true } label: {
                     Label("Settings", systemImage: "gearshape")
                 }
@@ -791,6 +801,20 @@ struct ReaderView: View {
 
     private func clearSelection() {
         selectedVerses = []
+    }
+
+    /// First launch only: present the guide after the splash has fully faded
+    /// (sheets appear above the splash overlay, so timing matters). UI tests
+    /// pass -skipGuide to launch straight into the reader; -resetGuide
+    /// simulates a first run on a device that has already seen it.
+    private func maybePresentFirstRunGuide() {
+        let arguments = ProcessInfo.processInfo.arguments
+        if arguments.contains("-skipGuide") { return }
+        if arguments.contains("-resetGuide") { hasSeenGuide = false }
+        guard !hasSeenGuide else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.3) {
+            showGuide = true
+        }
     }
 
     private func passageText(for selection: VerseSelection) -> String {

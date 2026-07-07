@@ -24,6 +24,7 @@ final class AppStoreScreenshotTests: XCTestCase {
 
     func testCaptureScreenshots() throws {
         let app = XCUIApplication()
+        app.launchArguments += ["-skipGuide"]
         app.launch()
 
         // 1. The splash moment (mark + wordmark on ivory).
@@ -74,5 +75,18 @@ final class AppStoreScreenshotTests: XCTestCase {
         app.swipeUp()
         Thread.sleep(forTimeInterval: 0.6)
         snap("06-about")
+        app.buttons["Done"].firstMatch.tap()
+
+        // 7. The guide's pen page (marks itself on a loop — a great shot).
+        app.buttons["Studies, Library, and Settings"].tap()
+        let howTo = app.buttons["How to use Versefold"]
+        XCTAssertTrue(howTo.waitForExistence(timeout: 3))
+        howTo.tap()
+        let next = app.buttons["Continue"]
+        XCTAssertTrue(next.waitForExistence(timeout: 3))
+        next.tap() // to page 2
+        next.tap() // to page 3, the pen demo
+        Thread.sleep(forTimeInterval: 2.2) // let the marker finish sweeping
+        snap("07-guide-pen")
     }
 }

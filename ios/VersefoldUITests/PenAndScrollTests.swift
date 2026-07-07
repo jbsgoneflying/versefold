@@ -27,6 +27,7 @@ final class PenAndScrollTests: XCTestCase {
 
     func testScrollAndPenCoexist() throws {
         let app = XCUIApplication()
+        app.launchArguments += ["-skipGuide"]
         app.launch()
 
         let verse1 = verseRow(app, 1)
@@ -76,6 +77,7 @@ final class PenAndScrollTests: XCTestCase {
     /// it, and watch the mark disappear.
     func testMarginNoteFlow() throws {
         let app = XCUIApplication()
+        app.launchArguments += ["-skipGuide"]
         app.launch()
 
         let verse5 = verseRow(app, 5)
