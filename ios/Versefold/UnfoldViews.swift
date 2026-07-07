@@ -12,22 +12,14 @@ struct UnfoldView: View {
     /// nil = plain Unfold; non-nil = "Ask about this passage" with a question field.
     let initialQuestion: String?
 
-    @State private var lens = "plain_language"
+    /// Unfold always answers through the deeper-study lens — one voice,
+    /// no mode picking.
+    private let lens = "for_deeper_study"
+
     @State private var question = ""
     @State private var response: ExplainResponse?
     @State private var loading = false
     @State private var errorMessage: String?
-
-    private static let lenses: [(String, String)] = [
-        ("plain_language", "Plain language"),
-        ("new_reader", "New reader"),
-        ("for_deeper_study", "Deeper study"),
-        ("historical_context", "Historical context"),
-        ("literary_clarity", "Literary clarity"),
-        ("devotional_warmth", "Devotional"),
-        ("pastoral_reflection", "Pastoral"),
-        ("contemplative", "Contemplative"),
-    ]
 
     private var isAskMode: Bool { initialQuestion != nil }
 
@@ -37,7 +29,6 @@ struct UnfoldView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     scriptureHeader
                     if isAskMode { questionField }
-                    lensPicker
                     if loading { loadingView }
                     if let errorMessage { errorView(errorMessage) }
                     if let response { explanationView(response) }
@@ -49,11 +40,6 @@ struct UnfoldView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
-                if response != nil {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Go deeper") { Task { await load(depth: "deeper") } }.disabled(loading)
-                    }
-                }
             }
             .task { if !isAskMode { await load() } }
         }
@@ -91,26 +77,6 @@ struct UnfoldView: View {
             }
             .disabled(question.trimmingCharacters(in: .whitespaces).isEmpty || loading)
             .accessibilityLabel("Ask")
-        }
-    }
-
-    private var lensPicker: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(Self.lenses, id: \.0) { key, label in
-                    Button {
-                        lens = key
-                        if response != nil { Task { await load() } }
-                    } label: {
-                        Text(label)
-                            .font(.system(size: 13, weight: lens == key ? .semibold : .regular))
-                            .padding(.horizontal, 14).padding(.vertical, 8)
-                            .background(Capsule().fill(lens == key ? Brand.hunter.opacity(0.10) : Brand.paper))
-                            .overlay(Capsule().stroke(lens == key ? Brand.hunter.opacity(0.4) : Brand.stone.opacity(0.25)))
-                            .foregroundStyle(lens == key ? Brand.hunter : Brand.ink.opacity(0.75))
-                    }
-                }
-            }
         }
     }
 
@@ -196,7 +162,7 @@ struct UnfoldView: View {
 
     // MARK: Actions
 
-    private func load(depth: String = "standard") async {
+    private func load(depth: String = "deeper") async {
         loading = true
         errorMessage = nil
         do {

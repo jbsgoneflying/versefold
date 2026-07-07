@@ -87,6 +87,48 @@ final class LibraryStore: ObservableObject {
         }
     }
 
+    /// Erase ink from exactly the stroked words. A mark wholly inside the
+    /// range disappears; a mark that extends beyond it is trimmed — erasing
+    /// the middle of a long stroke leaves both ends standing, like a real
+    /// eraser would.
+    func erasePenMarks(
+        osis: String, chapter: Int, verse: Int, translation: String, wordRange: ClosedRange<Int>
+    ) {
+        var result: [Highlight] = []
+        var changed = false
+        for h in highlights {
+            guard h.isPenMark, h.osis == osis, h.chapter == chapter, h.verseStart == verse,
+                  (h.translation ?? "kjv") == translation,
+                  let start = h.wordStart, let end = h.wordEnd,
+                  start <= wordRange.upperBound, end >= wordRange.lowerBound
+            else {
+                result.append(h)
+                continue
+            }
+            changed = true
+            // Surviving segments become fresh marks (new ids — a split would
+            // otherwise put the same id in the list twice).
+            func segment(_ range: ClosedRange<Int>) -> Highlight {
+                Highlight(
+                    id: UUID(), osis: h.osis, bookName: h.bookName, chapter: h.chapter,
+                    verseStart: h.verseStart, verseEnd: h.verseEnd, createdAt: h.createdAt,
+                    wordStart: range.lowerBound, wordEnd: range.upperBound,
+                    style: h.style, translation: h.translation
+                )
+            }
+            if start < wordRange.lowerBound {
+                result.append(segment(start...(wordRange.lowerBound - 1)))
+            }
+            if end > wordRange.upperBound {
+                result.append(segment((wordRange.upperBound + 1)...end))
+            }
+        }
+        if changed {
+            highlights = result
+            save()
+        }
+    }
+
     // MARK: Notes
 
     func addNote(for selection: VerseSelection, text: String) {
@@ -102,6 +144,18 @@ final class LibraryStore: ObservableObject {
     func removeNote(_ id: UUID) {
         notes.removeAll { $0.id == id }
         save()
+    }
+
+    func updateNote(_ id: UUID, text: String) {
+        guard let index = notes.firstIndex(where: { $0.id == id }) else { return }
+        notes[index].text = text
+        save()
+    }
+
+    /// Notes anchored to this verse (a note on a range lives at its first
+    /// verse). Keyed by verse number, so it holds across translations.
+    func verseNotes(osis: String, chapter: Int, verse: Int) -> [Note] {
+        notes.filter { $0.osis == osis && $0.chapter == chapter && $0.verseStart == verse }
     }
 
     // MARK: Bookmarks

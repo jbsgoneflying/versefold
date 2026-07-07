@@ -91,9 +91,12 @@ struct StudyBuilderView: View {
     @State private var depth = "standard"
     @State private var generating = false
     @State private var errorMessage: String?
+    /// A freshly built study is pushed onto this path so it opens right
+    /// away, whether the builder came from the Studies page or a verse.
+    @State private var path: [UUID] = []
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             Form {
                 Section("Source") {
                     if let prefill {
@@ -138,6 +141,15 @@ struct StudyBuilderView: View {
             .navigationTitle("New study")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+            .navigationDestination(for: UUID.self) { id in
+                StudyDetailView(planId: id)
+                    .navigationBarBackButtonHidden(true)
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") { dismiss() }
+                        }
+                    }
+            }
         }
     }
 
@@ -167,7 +179,8 @@ struct StudyBuilderView: View {
                 promptVersion: "study-v1", modelVersion: "server"
             )
             library.addStudy(plan)
-            dismiss()
+            // Open the new study in place — seeing it beats a list row.
+            path = [plan.id]
         } catch {
             errorMessage = error.localizedDescription
         }

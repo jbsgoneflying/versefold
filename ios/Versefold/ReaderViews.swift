@@ -27,7 +27,6 @@ struct ReaderView: View {
     @State private var markingVerse: Int?
     @State private var markingAnchor: Int?
     @State private var markingRange: ClosedRange<Int>?
-    @State private var wordFrames: [Int: CGRect] = [:]
     @State private var pendingMark: PendingPenMark?
     /// UIKit-level scroll freeze while painting (see ScrollLock for why
     /// SwiftUI's scrollDisabled cannot do this job).
@@ -102,8 +101,8 @@ struct ReaderView: View {
             .onChange(of: scripture.location) {
                 clearSelection()
                 clearPenMarking()
-                // Old chapter's row frames must not hit-test the new one.
-                penGeometry.rowFrames = [:]
+                // Old chapter's row and word frames must not hit-test the new one.
+                penGeometry.clear()
                 // The study breadcrumb survives its own jump, then dissolves
                 // on any further navigation — it never lingers.
                 scripture.noteLocationChanged()
@@ -112,6 +111,9 @@ struct ReaderView: View {
                 showStudies = false
                 showLibrary = false
                 showReturnStudy = false
+                // Also covers a study built from a verse: its sheet opens the
+                // new study, and tapping a reading there should land here.
+                activeSheet = nil
             }
             .onTapGesture(count: 2) { withAnimation { focusMode.toggle() } }
         }
@@ -290,7 +292,7 @@ struct ReaderView: View {
                     }
                 }
                 .onPreferenceChange(WordFramesKey.self) { frames in
-                    if markingVerse == verse.v { wordFrames = frames }
+                    penGeometry.wordFrames[verse.v] = frames
                 }
             } else {
                 (
@@ -340,6 +342,33 @@ struct ReaderView: View {
         .onTapGesture { toggleVerse(verse.v) }
         .accessibilityLabel("Verse \(verse.v). \(verse.t)")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
+        // Margin note mark: a hand-penned asterisk in the page gutter beside
+        // any verse with a note. Anchored by verse number, so it shows in
+        // every translation. Tapping opens the notes, editable in place.
+        // (Placed after the row's accessibility so it stays its own element.)
+        .overlay(alignment: .topLeading) {
+            if !library.verseNotes(
+                osis: scripture.location.osis, chapter: scripture.location.chapter, verse: verse.v
+            ).isEmpty {
+                Button {
+                    if let meta = scripture.meta(for: scripture.location.osis) {
+                        activeSheet = .notes(VerseSelection(
+                            osis: meta.osis, bookName: meta.name,
+                            chapter: scripture.location.chapter, verses: verse.v...verse.v
+                        ))
+                    }
+                } label: {
+                    MarginNoteMark(seed: penSeed(verse: verse.v),
+                                   color: theme.underlineInk.opacity(0.8))
+                        .frame(width: 13, height: 13)
+                        .frame(width: 30, height: 30)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .offset(x: -28, y: -2)
+                .accessibilityLabel("Notes on verse \(verse.v)")
+            }
+        }
     }
 
     // MARK: Pen marking (press-and-hold, then drag across words)
@@ -368,7 +397,6 @@ struct ReaderView: View {
         markingVerse = verse.v
         markingAnchor = nil
         markingRange = nil
-        wordFrames = [:]
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
     }
 
@@ -389,7 +417,7 @@ struct ReaderView: View {
               let rowFrame = penGeometry.rowFrames[verseNumber]
         else { return }
         let rowLocal = CGPoint(x: point.x - rowFrame.minX, y: point.y - rowFrame.minY)
-        guard let index = wordIndex(at: rowLocal) else { return }
+        guard let index = wordIndex(at: rowLocal, verse: verseNumber) else { return }
         if markingAnchor == nil { markingAnchor = index }
         let anchor = markingAnchor ?? index
         let range = min(anchor, index)...max(anchor, index)
@@ -418,13 +446,14 @@ struct ReaderView: View {
     /// The word under the finger, or the nearest one — dragging through a
     /// word gap or between lines keeps painting smoothly. Input is in the
     /// row's local space; word frames are in the row content's space.
-    private func wordIndex(at rowPoint: CGPoint) -> Int? {
+    private func wordIndex(at rowPoint: CGPoint, verse: Int) -> Int? {
+        guard let frames = penGeometry.wordFrames[verse] else { return nil }
         let point = CGPoint(x: rowPoint.x - Self.rowContentInset.x,
                             y: rowPoint.y - Self.rowContentInset.y)
-        if let hit = wordFrames.first(where: { $0.value.insetBy(dx: -3, dy: -4).contains(point) }) {
+        if let hit = frames.first(where: { $0.value.insetBy(dx: -3, dy: -4).contains(point) }) {
             return hit.key
         }
-        return wordFrames.min { a, b in
+        return frames.min { a, b in
             wordDistance(a.value, to: point) < wordDistance(b.value, to: point)
         }?.key
     }
@@ -441,8 +470,27 @@ struct ReaderView: View {
         markingVerse = nil
         markingAnchor = nil
         markingRange = nil
-        wordFrames = [:]
         pendingMark = nil
+    }
+
+    private func strokeCrossesInk(_ pending: PendingPenMark) -> Bool {
+        library.penMarks(
+            osis: scripture.location.osis, chapter: scripture.location.chapter,
+            verse: pending.verse, translation: scripture.translation
+        ).contains { mark in
+            guard let start = mark.wordStart, let end = mark.wordEnd else { return false }
+            return start <= pending.range.upperBound && end >= pending.range.lowerBound
+        }
+    }
+
+    private func erasePenMark(_ pending: PendingPenMark) {
+        library.erasePenMarks(
+            osis: scripture.location.osis, chapter: scripture.location.chapter,
+            verse: pending.verse, translation: scripture.translation,
+            wordRange: pending.range
+        )
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        clearPenMarking()
     }
 
     private func savePenMark(_ pending: PendingPenMark, style: PenStyle) {
@@ -481,6 +529,21 @@ struct ReaderView: View {
             }
             .buttonStyle(.bordered)
             .tint(Brand.hunter)
+
+            // Stroking over existing ink offers the eraser: it lifts exactly
+            // the stroked words, trimming any mark that extends beyond them.
+            if strokeCrossesInk(pending) {
+                Button {
+                    erasePenMark(pending)
+                } label: {
+                    Image(systemName: "eraser")
+                        .font(.system(size: 15, weight: .medium))
+                        .frame(width: 34, height: 22)
+                }
+                .buttonStyle(.bordered)
+                .tint(theme.meta)
+                .accessibilityLabel("Erase marks")
+            }
 
             Spacer(minLength: 0)
 
@@ -748,6 +811,7 @@ struct ReaderView: View {
         case .study(let sel): StudyBuilderView(prefill: sel)
         case .card(let sel): CardComposerView(selection: sel, scriptureText: passageBareText(for: sel))
         case .compare(let sel): CompareView(selection: sel)
+        case .notes(let sel): VerseNotesView(selection: sel)
         }
     }
 
@@ -761,7 +825,7 @@ struct ReaderView: View {
 
 enum PassageSheet: Identifiable {
     case unfold(VerseSelection), ask(VerseSelection), note(VerseSelection), study(VerseSelection),
-         card(VerseSelection), compare(VerseSelection)
+         card(VerseSelection), compare(VerseSelection), notes(VerseSelection)
     var id: String {
         switch self {
         case .unfold(let s): return "unfold-\(s.passageId)"
@@ -770,6 +834,7 @@ enum PassageSheet: Identifiable {
         case .study(let s): return "study-\(s.passageId)"
         case .card(let s): return "card-\(s.passageId)"
         case .compare(let s): return "compare-\(s.passageId)"
+        case .notes(let s): return "notes-\(s.passageId)"
         }
     }
 }

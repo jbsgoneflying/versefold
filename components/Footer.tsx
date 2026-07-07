@@ -1,10 +1,10 @@
 import { Logo } from "./Logo";
 
 const links = [
-  { href: "#", label: "Privacy" },
-  { href: "#", label: "Terms" },
+  { href: "/privacy", label: "Privacy" },
+  { href: "/terms", label: "Terms" },
+  { href: "/support", label: "Support" },
   { href: "mailto:hello@versefold.app", label: "Contact" },
-  { href: "#early-access", label: "Early access" },
 ];
 
 export function Footer() {

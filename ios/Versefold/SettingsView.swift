@@ -72,10 +72,38 @@ struct SettingsView: View {
                     Section { Text(statusMessage).foregroundStyle(Brand.hunter) }
                 }
 
-                Section("About") {
+                Section {
+                    VStack(spacing: 10) {
+                        Image("LaunchMark")
+                            .resizable().scaledToFit()
+                            .frame(height: 52)
+                        Text("Versefold")
+                            .font(.scripture(size: 22))
+                            .foregroundStyle(Brand.ink)
+                        Text("Scripture first. Everything else quiet.")
+                            .font(.system(size: 13))
+                            .foregroundStyle(Brand.stone)
+                        Text("Version \(Self.appVersion)")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Brand.stone.opacity(0.8))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .listRowBackground(Color.clear)
+
                     LabeledContent("Translation", value: scripture.index.translation)
                     LabeledContent("Attribution", value: scripture.index.copyright)
-                    LabeledContent("Version", value: "0.1.0 (private beta)")
+                    Link(destination: URL(string: "https://versefold.app/privacy")!) {
+                        Label("Privacy Policy", systemImage: "hand.raised")
+                    }
+                    Link(destination: URL(string: "https://versefold.app/terms")!) {
+                        Label("Terms of Use", systemImage: "doc.text")
+                    }
+                    Link(destination: URL(string: "https://versefold.app/support")!) {
+                        Label("Support", systemImage: "questionmark.circle")
+                    }
+                } header: {
+                    Text("About")
                 }
             }
             .navigationTitle("Settings")
@@ -104,6 +132,14 @@ struct SettingsView: View {
                 Text("Removes highlights, notes, bookmarks, cards, studies, and AI history. This cannot be undone.")
             }
         }
+    }
+
+    /// Real marketing version + build from the bundle, so this never goes
+    /// stale when project.yml bumps.
+    private static var appVersion: String {
+        let short = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "—"
+        return "\(short) (\(build))"
     }
 
     /// Writes the user's data export to a temp file for the share sheet.

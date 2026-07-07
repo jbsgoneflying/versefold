@@ -57,13 +57,22 @@ final class ScrollLock {
     func unlock() { scrollView?.isScrollEnabled = true }
 }
 
-/// Verse-row frames in chapter-content coordinates, written by the rows as
-/// they lay out. A plain class: updates must never invalidate any view.
+/// Verse-row frames (chapter space) and word frames (row space), written by
+/// the rows as they lay out. A plain class: updates never invalidate views.
+/// Word frames are cached per verse — a verse that already carries ink is
+/// in word layout long before the pen arms again, so its frames must survive
+/// from that first layout, not just from the moment of marking.
 final class PenGeometry {
     var rowFrames: [Int: CGRect] = [:]
+    var wordFrames: [Int: [Int: CGRect]] = [:]
 
     func verse(at point: CGPoint) -> Int? {
         rowFrames.first { $0.value.contains(point) }?.key
+    }
+
+    func clear() {
+        rowFrames = [:]
+        wordFrames = [:]
     }
 }
 

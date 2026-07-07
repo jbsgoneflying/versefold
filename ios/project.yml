@@ -15,8 +15,7 @@ settings:
     DEVELOPMENT_TEAM: VFDP96W9C2
     CODE_SIGN_STYLE: Automatic
     MARKETING_VERSION: "0.1.0"
-    CURRENT_PROJECT_VERSION: "7"
-    INFOPLIST_KEY_UILaunchScreen_Generation: YES
+    CURRENT_PROJECT_VERSION: "10"
     # Standard HTTPS only — answers the export-compliance question once,
     # instead of on every TestFlight upload.
     INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
@@ -33,6 +32,14 @@ targets:
       - path: Versefold/Resources/kjv
         type: folder
         buildPhase: resources
+    # System launch screen: the book mark centered on the brand ivory —
+    # the exact first frame of SplashView, so launch feels like one motion.
+    info:
+      path: Versefold/Info.plist
+      properties:
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+          UIImageName: LaunchMark
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.versefold.ios

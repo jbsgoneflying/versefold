@@ -75,6 +75,47 @@
    Utilities & components
 ---------------------------------------------------------------------------- */
 @layer components {
+  /* Long-form legal/support text: quiet, readable, consistent rhythm. */
+  .prose-legal {
+    font-size: 0.9875rem;
+    color: color-mix(in srgb, var(--color-ink) 88%, transparent);
+  }
+
+  .prose-legal h2 {
+    margin-top: 2.25rem;
+    margin-bottom: 0.75rem;
+    font-size: 1.5rem;
+  }
+
+  .prose-legal h3 {
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+    font-size: 1.2rem;
+  }
+
+  .prose-legal p {
+    margin-bottom: 1rem;
+  }
+
+  .prose-legal ul {
+    margin: 0 0 1rem 1.25rem;
+    list-style: disc;
+  }
+
+  .prose-legal li {
+    margin-bottom: 0.4rem;
+  }
+
+  .prose-legal a {
+    color: var(--color-hunter);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .prose-legal strong {
+    color: var(--color-ink);
+  }
+
   .skip-link {
     position: absolute;
     left: -999px;

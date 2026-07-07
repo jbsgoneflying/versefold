@@ -314,6 +314,18 @@ struct ScriptureCardView: View {
 
                 Spacer(minLength: 70)
             }
+
+            // Quiet credit line — cards travel (texts, stories), and this is
+            // the only trace of where they came from. Kept in the meta tone
+            // so it reads as a colophon, never an ad.
+            VStack {
+                Spacer()
+                Text("versefold.app")
+                    .font(.system(size: 11, weight: .medium))
+                    .kerning(1.2)
+                    .foregroundStyle(theme.meta.opacity(0.7))
+                    .padding(.bottom, 26)
+            }
         }
     }
 
