@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 export const APP_STORE_URL =
-  "https://apps.apple.com/us/app/versefold/id6788062359";
+  "https://apps.apple.com/app/versefold/id6788062359";
 
 /**
  * Official Apple "Download on the App Store" badge (black, per Apple's
