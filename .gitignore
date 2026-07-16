@@ -42,3 +42,4 @@ DerivedData/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+backend/test/.tmp/

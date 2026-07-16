@@ -25,14 +25,33 @@ export interface UsageRecord {
   outputTokens: number;
 }
 
+/**
+ * A background study generation. POST creates one and returns immediately;
+ * the app polls until it's complete (or failed) — readers keep reading while
+ * the study builds.
+ */
+export interface StudyJob {
+  id: string;
+  deviceId: string;
+  status: "running" | "complete" | "failed";
+  createdAt: string;
+  daysReady: number;
+  totalDays: number;
+  artifactId?: string;
+  plan?: unknown;
+  dropped?: string[];
+  error?: string;
+}
+
 interface StoreShape {
   artifacts: Artifact[];
   usage: UsageRecord[];
   feedback: Array<{ id: string; deviceId: string; createdAt: string; message: string; context?: string }>;
+  studyJobs?: StudyJob[];
 }
 
 export class Store {
-  private data: StoreShape = { artifacts: [], usage: [], feedback: [] };
+  private data: StoreShape = { artifacts: [], usage: [], feedback: [], studyJobs: [] };
 
   constructor(private readonly filePath: string) {
     if (existsSync(filePath)) {
@@ -40,6 +59,14 @@ export class Store {
         this.data = JSON.parse(readFileSync(filePath, "utf8")) as StoreShape;
       } catch {
         // start fresh on corrupt store
+      }
+    }
+    this.data.studyJobs ??= [];
+    // Jobs from a previous process are orphans — their generation died with it.
+    for (const job of this.data.studyJobs) {
+      if (job.status === "running") {
+        job.status = "failed";
+        job.error = "The study build was interrupted. Please try again.";
       }
     }
   }
@@ -118,6 +145,36 @@ export class Store {
         inputTokens: d.inputTokens,
         outputTokens: d.outputTokens,
       }));
+  }
+
+  createStudyJob(deviceId: string, totalDays: number): StudyJob {
+    const job: StudyJob = {
+      id: randomUUID(),
+      deviceId,
+      status: "running",
+      createdAt: new Date().toISOString(),
+      daysReady: 0,
+      totalDays,
+    };
+    this.data.studyJobs!.push(job);
+    // Completed jobs only matter until the app collects them; keep the tail.
+    if (this.data.studyJobs!.length > 200) {
+      this.data.studyJobs = this.data.studyJobs!.slice(-200);
+    }
+    this.persist();
+    return job;
+  }
+
+  updateStudyJob(id: string, patch: Partial<Omit<StudyJob, "id" | "deviceId" | "createdAt">>): StudyJob | undefined {
+    const job = this.data.studyJobs!.find((j) => j.id === id);
+    if (!job) return undefined;
+    Object.assign(job, patch);
+    this.persist();
+    return job;
+  }
+
+  getStudyJob(id: string): StudyJob | undefined {
+    return this.data.studyJobs!.find((j) => j.id === id);
   }
 
   saveFeedback(deviceId: string, message: string, context?: string) {

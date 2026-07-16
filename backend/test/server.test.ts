@@ -58,8 +58,11 @@ afterAll(() => {
   globalThis.fetch = realFetch;
 });
 
+let completeCalls = 0;
+
 const fakeGateway: ModelGateway = {
   async complete(req) {
+    completeCalls += 1;
     if (req.schema?.name === "versefold_card_confessions") {
       return {
         text: JSON.stringify({
@@ -73,38 +76,51 @@ const fakeGateway: ModelGateway = {
         usage: { inputTokens: 40, outputTokens: 60 },
       };
     }
-    if (req.schema?.name === "versefold_study_plan") {
+    if (req.schema?.name === "versefold_study_outline") {
       return {
         text: JSON.stringify({
           title: "Test Study",
           description: "A test.",
           days: [
-            {
-              dayNumber: 1,
-              title: "Day one",
-              primaryReading: "JHN.3.16",
-              supportingReadings: ["PSA.23.1", "FAKE.99.99"],
-              context: "Context.",
-              centralTheme: "Love of God.",
-              reflectionQuestions: ["Q1?", "Q2?"],
-              prayerPrompt: "Pray.",
-              practicalResponse: null,
-            },
+            { dayNumber: 1, title: "Day one", primaryReading: "JHN.3.16", centralTheme: "Love of God." },
+            { dayNumber: 2, title: "Day two", primaryReading: "JHN.3.17", centralTheme: "Sent to save." },
+            { dayNumber: 3, title: "Day three", primaryReading: "PSA.23.1", centralTheme: "The shepherd." },
           ],
         }),
         model: "fake-model-1",
-        usage: { inputTokens: 100, outputTokens: 200 },
+        usage: { inputTokens: 100, outputTokens: 120 },
       };
     }
+    if (req.schema?.name === "versefold_study_day") {
+      return {
+        text: JSON.stringify({
+          // "context:" prefix mimics the label-leak defect — must be stripped server-side
+          supportingReadings: ["PSA.23.1", "FAKE.99.99"],
+          context: "context: Context.",
+          reflectionQuestions: ["Q1?", "Q2?"],
+          prayerPrompt: "Pray.",
+          practicalResponse: null,
+        }),
+        model: "fake-model-1",
+        usage: { inputTokens: 80, outputTokens: 100 },
+      };
+    }
+    const explanation = JSON.stringify({
+      summary: "God's love gives eternal life through the Son.",
+      blocks: [
+        { kind: "interpretation", text: "The verse centers God's initiating love.", disputed: false },
+        { kind: "reflection_question", text: "What does belief mean here?", disputed: false },
+      ],
+      references: ["JHN.3.16", "JHN.3.17", "FAKE.99.99"],
+    });
+    // Streaming requests get the same text delivered as deltas.
+    if (req.onDelta) {
+      const mid = Math.floor(explanation.length / 2);
+      req.onDelta(explanation.slice(0, mid));
+      req.onDelta(explanation.slice(mid));
+    }
     return {
-      text: JSON.stringify({
-        summary: "God's love gives eternal life through the Son.",
-        blocks: [
-          { kind: "interpretation", text: "The verse centers God's initiating love.", disputed: false },
-          { kind: "reflection_question", text: "What does belief mean here?", disputed: false },
-        ],
-        references: ["JHN.3.16", "JHN.3.17", "FAKE.99.99"],
-      }),
+      text: explanation,
       model: "fake-model-1",
       usage: { inputTokens: 50, outputTokens: 80 },
     };
@@ -196,6 +212,37 @@ describe("Versefold backend routes", () => {
     expect(body.artifactId).toBeDefined();
   });
 
+  it("serves identical unfolds from the response cache without a model call", async () => {
+    const before = completeCalls;
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/ai/explain",
+      headers: device,
+      payload: { translation: "kjv", passageId: "JHN.3.16", lens: "plain_language" },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().basis.references).toEqual(["JHN.3.16", "JHN.3.17"]);
+    expect(completeCalls).toBe(before); // cache hit — the model was never asked
+  });
+
+  it("streams an unfold over SSE: partial events then the full validated payload", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/ai/explain/stream",
+      headers: device,
+      // new_reader lens = distinct cache key, so this exercises the live-stream path
+      payload: { translation: "kjv", passageId: "JHN.3.16", lens: "new_reader" },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["content-type"]).toContain("text/event-stream");
+    expect(res.payload).toContain("event: partial");
+    expect(res.payload).toContain("event: complete");
+    const completeData = res.payload.split("event: complete\ndata: ")[1].split("\n")[0];
+    const complete = JSON.parse(completeData);
+    expect(complete.basis.references).toEqual(["JHN.3.16", "JHN.3.17"]);
+    expect(complete.passage.text).toContain("For God so loved the world");
+  });
+
   it("generates a study, validates day readings, saves durable artifact", async () => {
     const res = await app.inject({
       method: "POST",
@@ -205,12 +252,49 @@ describe("Versefold backend routes", () => {
     });
     expect(res.statusCode).toBe(200);
     const body = res.json();
+    expect(body.plan.days).toHaveLength(3);
     expect(body.plan.days[0].primaryReading).toBe("JHN.3.16");
     expect(body.plan.days[0].supportingReadings).toEqual(["PSA.23.1"]); // FAKE dropped
+    expect(body.plan.days[0].context).toBe("Context."); // leaked "context:" label stripped
     expect(body.artifactId).toBeDefined();
 
     const list = await app.inject({ method: "GET", url: "/v1/artifacts", headers: device });
     expect(list.json().artifacts.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("builds a study as a background job the app can poll to completion", async () => {
+    const start = await app.inject({
+      method: "POST",
+      url: "/v1/ai/study/jobs",
+      headers: device,
+      payload: { source: "JHN.3.16", sourceType: "passage", days: 3, minutesPerDay: 15, depth: "standard" },
+    });
+    expect(start.statusCode).toBe(202);
+    const { jobId, totalDays } = start.json();
+    expect(jobId).toBeDefined();
+    expect(totalDays).toBe(3);
+
+    // Poll until the background generation lands (fake gateway is instant).
+    let status: Record<string, unknown> = {};
+    for (let i = 0; i < 50; i++) {
+      const poll = await app.inject({ method: "GET", url: `/v1/ai/study/jobs/${jobId}`, headers: device });
+      expect(poll.statusCode).toBe(200);
+      status = poll.json();
+      if (status.status !== "running") break;
+      await new Promise((r) => setTimeout(r, 20));
+    }
+    expect(status.status).toBe("complete");
+    expect(status.daysReady).toBe(3);
+    expect(status.artifactId).toBeDefined();
+    expect((status.plan as { days: unknown[] }).days).toHaveLength(3);
+
+    // Jobs are device-owned: another device cannot read them.
+    const foreign = await app.inject({
+      method: "GET",
+      url: `/v1/ai/study/jobs/${jobId}`,
+      headers: { "x-versefold-device": "someone-elses-device" },
+    });
+    expect(foreign.statusCode).toBe(404);
   });
 
   it("crafts card confessions, filtering verbatim verse slices", async () => {

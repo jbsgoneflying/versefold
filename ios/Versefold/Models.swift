@@ -220,9 +220,31 @@ struct BasisDTO: Codable {
     let dropped: [String]
 }
 
+/// In-flight unfold content from the SSE stream — display-only; the final
+/// validated `ExplainResponse` always replaces it.
+struct ExplainPartial: Codable {
+    let summary: String?
+    let blocks: [ExplanationBlockDTO]?
+}
+
 struct StudyGenResponse: Codable {
     let artifactId: String
     let plan: StudyPlanDTO
+}
+
+struct StudyJobStart: Codable {
+    let jobId: String
+    let totalDays: Int
+}
+
+struct StudyJobStatus: Codable {
+    let jobId: String
+    let status: String // "running" | "complete" | "failed"
+    let daysReady: Int
+    let totalDays: Int
+    let artifactId: String?
+    let plan: StudyPlanDTO?
+    let error: String?
 }
 
 struct StudyPlanDTO: Codable {

@@ -33,22 +33,36 @@ final class AIClient: ObservableObject {
         return fresh
     }
 
-    private func request(_ path: String, method: String = "GET", body: [String: Any]? = nil) async throws -> Data {
+    private func makeRequest(_ path: String, method: String, body: [String: Any]?) throws -> URLRequest {
         var req = URLRequest(url: Self.baseURL.appendingPathComponent(path))
         req.httpMethod = method
         req.setValue(Self.deviceId, forHTTPHeaderField: "x-versefold-device")
-        req.timeoutInterval = 60
+        // Generous ceiling for slow connections; generation itself is fast now.
+        req.timeoutInterval = 120
         if let body {
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
             req.httpBody = try JSONSerialization.data(withJSONObject: body)
         }
+        return req
+    }
+
+    private func request(_ path: String, method: String = "GET", body: [String: Any]? = nil) async throws -> Data {
+        let req = try makeRequest(path, method: method, body: body)
 
         let data: Data
         let response: URLResponse
         do {
             (data, response) = try await URLSession.shared.data(for: req)
         } catch {
-            throw AIError.offline
+            // One quiet retry for idempotent calls: a momentary network blip
+            // must not fail a poll that would have succeeded a second later.
+            guard method == "GET" else { throw AIError.offline }
+            try? await Task.sleep(for: .seconds(1.5))
+            do {
+                (data, response) = try await URLSession.shared.data(for: req)
+            } catch {
+                throw AIError.offline
+            }
         }
 
         guard let http = response as? HTTPURLResponse else { throw AIError.offline }
@@ -84,6 +98,64 @@ final class AIClient: ObservableObject {
         return try JSONDecoder().decode(ExplainResponse.self, from: data)
     }
 
+    /// Streaming unfold over SSE: real sentences appear while the model still
+    /// writes. `onPartial` fires on the main actor with the text so far; the
+    /// returned value is the final, citation-validated response (identical to
+    /// what `explain` returns). Callers should fall back to `explain` on error.
+    func explainStreaming(
+        passageId: String,
+        lens: String,
+        question: String? = nil,
+        depth: String = "standard",
+        save: Bool = false,
+        onPartial: @escaping (ExplainPartial) -> Void
+    ) async throws -> ExplainResponse {
+        var body: [String: Any] = [
+            "translation": "kjv",
+            "passageId": passageId,
+            "lens": lens,
+            "depth": depth,
+            "save": save,
+        ]
+        if let question { body["question"] = question }
+        let req = try makeRequest("v1/ai/explain/stream", method: "POST", body: body)
+
+        let bytes: URLSession.AsyncBytes
+        let response: URLResponse
+        do {
+            (bytes, response) = try await URLSession.shared.bytes(for: req)
+        } catch {
+            throw AIError.offline
+        }
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+            throw AIError.server("The study layer is busy right now. Please try again.")
+        }
+
+        let decoder = JSONDecoder()
+        var eventName = ""
+        for try await line in bytes.lines {
+            if line.hasPrefix("event:") {
+                eventName = line.dropFirst(6).trimmingCharacters(in: .whitespaces)
+            } else if line.hasPrefix("data:") {
+                let payload = Data(line.dropFirst(5).trimmingCharacters(in: .whitespaces).utf8)
+                switch eventName {
+                case "partial":
+                    if let partial = try? decoder.decode(ExplainPartial.self, from: payload) {
+                        onPartial(partial)
+                    }
+                case "complete":
+                    return try decoder.decode(ExplainResponse.self, from: payload)
+                case "error":
+                    let message = (try? decoder.decode([String: String].self, from: payload))?["message"]
+                    throw AIError.server(message ?? "Unfold failed. Please try again.")
+                default:
+                    break
+                }
+            }
+        }
+        throw AIError.offline // stream ended without a terminal event
+    }
+
     func generateStudy(
         source: String,
         sourceType: String,
@@ -102,6 +174,33 @@ final class AIClient: ObservableObject {
         if let lens { body["lens"] = lens }
         let data = try await request("v1/ai/study", method: "POST", body: body)
         return try JSONDecoder().decode(StudyGenResponse.self, from: data)
+    }
+
+    /// Kick off a background study build on the server. Returns immediately;
+    /// poll `studyJobStatus` for progress. The reader keeps reading meanwhile.
+    func startStudyJob(
+        source: String,
+        sourceType: String,
+        days: Int,
+        minutesPerDay: Int,
+        depth: String,
+        lens: String?
+    ) async throws -> StudyJobStart {
+        var body: [String: Any] = [
+            "source": source,
+            "sourceType": sourceType,
+            "days": days,
+            "minutesPerDay": minutesPerDay,
+            "depth": depth,
+        ]
+        if let lens { body["lens"] = lens }
+        let data = try await request("v1/ai/study/jobs", method: "POST", body: body)
+        return try JSONDecoder().decode(StudyJobStart.self, from: data)
+    }
+
+    func studyJobStatus(_ jobId: String) async throws -> StudyJobStatus {
+        let data = try await request("v1/ai/study/jobs/\(jobId)")
+        return try JSONDecoder().decode(StudyJobStatus.self, from: data)
     }
 
     /// Craft short confessions built on a passage's meaning, for the card's

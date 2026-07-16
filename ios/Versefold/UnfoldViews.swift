@@ -18,6 +18,9 @@ struct UnfoldView: View {
 
     @State private var question = ""
     @State private var response: ExplainResponse?
+    /// Live text from the SSE stream while the model writes; replaced by the
+    /// final validated response the moment it lands.
+    @State private var partial: ExplainPartial?
     @State private var loading = false
     @State private var errorMessage: String?
 
@@ -29,9 +32,13 @@ struct UnfoldView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     scriptureHeader
                     if isAskMode { questionField }
-                    if loading { loadingView }
+                    if loading && partial == nil { loadingView }
                     if let errorMessage { errorView(errorMessage) }
-                    if let response { explanationView(response) }
+                    if let response {
+                        explanationView(response)
+                    } else if let partial {
+                        partialView(partial)
+                    }
                 }
                 .padding(20)
             }
@@ -89,21 +96,7 @@ struct UnfoldView: View {
                 .foregroundStyle(Brand.ink)
 
             ForEach(res.explanation.blocks) { block in
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 6) {
-                        Text(block.kindLabel)
-                            .font(.system(size: 11, weight: .semibold)).textCase(.uppercase).kerning(0.8)
-                            .foregroundStyle(Brand.stone)
-                        if block.disputed {
-                            Text("Interpretations differ")
-                                .font(.system(size: 10, weight: .medium))
-                                .padding(.horizontal, 6).padding(.vertical, 2)
-                                .background(Capsule().fill(Brand.parchment))
-                                .foregroundStyle(Brand.ink.opacity(0.7))
-                        }
-                    }
-                    Text(block.text).font(.system(size: 15)).foregroundStyle(Brand.ink.opacity(0.85))
-                }
+                blockView(block)
             }
 
             basisView(res)
@@ -122,6 +115,44 @@ struct UnfoldView: View {
                     .font(.system(size: 10)).foregroundStyle(Brand.stone)
             }
             .padding(.top, 4)
+        }
+    }
+
+    /// Streaming view: real sentences while the model writes. No basis or
+    /// save yet — those belong to the validated final response only.
+    private func partialView(_ partial: ExplainPartial) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            if let summary = partial.summary {
+                Text(summary)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(Brand.ink)
+            }
+            ForEach(partial.blocks ?? []) { block in
+                blockView(block)
+            }
+            HStack(spacing: 8) {
+                ProgressView().tint(Brand.hunter).scaleEffect(0.8)
+                Text("Still unfolding…").font(.system(size: 12)).foregroundStyle(Brand.stone)
+            }
+            .padding(.top, 2)
+        }
+    }
+
+    private func blockView(_ block: ExplanationBlockDTO) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Text(block.kindLabel)
+                    .font(.system(size: 11, weight: .semibold)).textCase(.uppercase).kerning(0.8)
+                    .foregroundStyle(Brand.stone)
+                if block.disputed {
+                    Text("Interpretations differ")
+                        .font(.system(size: 10, weight: .medium))
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(Capsule().fill(Brand.parchment))
+                        .foregroundStyle(Brand.ink.opacity(0.7))
+                }
+            }
+            Text(block.text).font(.system(size: 15)).foregroundStyle(Brand.ink.opacity(0.85))
         }
     }
 
@@ -165,16 +196,29 @@ struct UnfoldView: View {
     private func load(depth: String = "deeper") async {
         loading = true
         errorMessage = nil
+        partial = nil
+        let q = isAskMode && !question.isEmpty ? question : nil
         do {
-            response = try await client.explain(
+            // Streamed: sentences appear while the model writes.
+            response = try await client.explainStreaming(
                 passageId: selection.passageId,
                 lens: lens,
-                question: isAskMode && !question.isEmpty ? question : nil,
-                depth: depth
+                question: q,
+                depth: depth,
+                onPartial: { partial = $0 }
             )
         } catch {
-            errorMessage = error.localizedDescription
+            // Any streaming trouble (proxies, flaky wifi) falls back to the
+            // plain request before an error ever reaches the reader.
+            do {
+                response = try await client.explain(
+                    passageId: selection.passageId, lens: lens, question: q, depth: depth
+                )
+            } catch {
+                errorMessage = error.localizedDescription
+            }
         }
+        partial = nil
         loading = false
     }
 

@@ -107,13 +107,19 @@ export async function validateCitations(
   const valid: string[] = [];
   const dropped: string[] = [];
 
-  for (const raw of references) {
-    const ref = normalizeReference(raw);
-    if (!isValidPassageId(ref)) {
-      dropped.push(raw);
-      continue;
-    }
-    if (await passageExists(translationKey, ref)) valid.push(ref);
+  // One existence lookup per UNIQUE reference, all in flight together —
+  // models repeat references, and sequential lookups were a visible share
+  // of study latency on a cold scripture cache.
+  const normalized = references.map((raw) => ({ raw, ref: normalizeReference(raw) }));
+  const uniqueRefs = [...new Set(normalized.filter(({ ref }) => isValidPassageId(ref)).map(({ ref }) => ref))];
+  const existence = new Map<string, boolean>(
+    await Promise.all(
+      uniqueRefs.map(async (ref): Promise<[string, boolean]> => [ref, await passageExists(translationKey, ref)])
+    )
+  );
+
+  for (const { raw, ref } of normalized) {
+    if (existence.get(ref)) valid.push(ref);
     else dropped.push(raw);
   }
 

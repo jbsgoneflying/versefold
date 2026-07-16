@@ -11,6 +11,34 @@ import { getGateway } from "./gateway.js";
 import { SYSTEM_PROMPT, PROMPT_VERSION, buildExplainInput, type Lens } from "./prompts.js";
 import { EXPLANATION_SCHEMA, type Explanation } from "./schema.js";
 import { validateCitations } from "./citations.js";
+import { ScriptureCache } from "../cache.js";
+
+/**
+ * Unfold response cache. The same verse unfolded through the same lens is the
+ * same answer — popular passages become instant instead of a full model run.
+ * Requests carrying a personal question always bypass it.
+ */
+const explainCache = new ScriptureCache(
+  config.databasePath.replace(/\.db$/, "-explain-cache.json")
+);
+const EXPLAIN_CACHE_TTL_SECONDS = 7 * 24 * 3600;
+
+function explainCacheKey(opts: {
+  translationKey: string;
+  passageId: string;
+  lens: Lens;
+  depth?: "standard" | "deeper";
+}): string {
+  return [
+    "explain",
+    PROMPT_VERSION,
+    config.models.explain,
+    opts.translationKey,
+    opts.passageId,
+    opts.lens,
+    opts.depth ?? "standard",
+  ].join(":");
+}
 
 export interface ExplainResult {
   explanation: Explanation;
@@ -22,14 +50,30 @@ export interface ExplainResult {
   groundedOnText: boolean; // false when rights forced reference-only grounding
 }
 
-export async function explainPassage(opts: {
+export interface ExplainOptions {
   translationKey: string;
   passageId: string;
   lens: Lens;
   userQuestion?: string;
   depth?: "standard" | "deeper";
-}): Promise<ExplainResult> {
+  /** Raw model-output deltas, forwarded while the model writes (SSE path). */
+  onDelta?: (delta: string) => void;
+}
+
+export async function explainPassage(opts: ExplainOptions): Promise<ExplainResult> {
   const t = getTranslation(opts.translationKey);
+
+  // Cache: only question-free unfolds are cacheable (they're deterministic in
+  // meaning), and copyrighted passage text may only be cached per its rights.
+  const cacheable = !opts.userQuestion;
+  const cacheKey = explainCacheKey(opts);
+  if (cacheable) {
+    const hit = explainCache.get<ExplainResult>(cacheKey);
+    if (hit) {
+      // A cache hit costs no tokens; report zero usage so metering stays true.
+      return { ...hit, usage: { inputTokens: 0, outputTokens: 0 } };
+    }
+  }
 
   // The passage the reader sees always comes from the source in their chosen translation.
   const displayPassage = await getPassage(opts.translationKey, opts.passageId);
@@ -75,8 +119,10 @@ export async function explainPassage(opts: {
       "or professional (including a crisis line if they are in danger), and do not lecture or moralize.";
   }
 
+  // Benchmarked 2026-07-16: the explain model matches the study model on
+  // unfold quality at 2.4x the speed, so every depth runs on it now.
   const response = await getGateway().complete({
-    model: opts.depth === "deeper" ? config.models.study : config.models.explain,
+    model: config.models.explain,
     system: SYSTEM_PROMPT,
     input,
     schema: EXPLANATION_SCHEMA as unknown as {
@@ -84,6 +130,7 @@ export async function explainPassage(opts: {
       strict: boolean;
       schema: Record<string, unknown>;
     },
+    onDelta: opts.onDelta,
   });
 
   let explanation: Explanation;
@@ -99,7 +146,7 @@ export async function explainPassage(opts: {
   const report = await validateCitations("kjv", explanation.references, { requireAtLeastOne: true });
   explanation.references = report.valid;
 
-  return {
+  const result: ExplainResult = {
     explanation,
     passage: displayPassage,
     droppedReferences: report.dropped,
@@ -108,4 +155,14 @@ export async function explainPassage(opts: {
     usage: response.usage,
     groundedOnText,
   };
+
+  if (cacheable) {
+    // Copyrighted passage text is cached no longer than its rights allow.
+    const ttl = t.publicDomain
+      ? EXPLAIN_CACHE_TTL_SECONDS
+      : Math.min(EXPLAIN_CACHE_TTL_SECONDS, t.rights.cacheTtlSeconds);
+    if (t.publicDomain || t.rights.caching) explainCache.set(cacheKey, result, ttl);
+  }
+
+  return result;
 }

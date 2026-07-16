@@ -11,6 +11,12 @@ export interface ModelRequest {
   input: string;
   schema?: { name: string; strict: boolean; schema: Record<string, unknown> };
   maxOutputTokens?: number;
+  /**
+   * When set, the provider is asked to stream and every output-text delta is
+   * forwarded here as it arrives. `complete` still resolves with the full
+   * response at the end — streaming is presentation-only.
+   */
+  onDelta?: (delta: string) => void;
 }
 
 export interface ModelResponse {
@@ -29,6 +35,7 @@ interface OpenAIResponsesBody {
   instructions: string;
   input: string;
   max_output_tokens?: number;
+  stream?: boolean;
   text?: { format: { type: "json_schema"; name: string; strict: boolean; schema: Record<string, unknown> } };
 }
 
@@ -55,6 +62,7 @@ export class OpenAIGateway implements ModelGateway {
         },
       };
     }
+    if (req.onDelta) body.stream = true;
 
     const res = await fetch(`${this.base}/responses`, {
       method: "POST",
@@ -69,6 +77,10 @@ export class OpenAIGateway implements ModelGateway {
       const err = new Error(`Model provider error ${res.status}: ${detail.slice(0, 300)}`);
       (err as Error & { statusCode: number }).statusCode = 502;
       throw err;
+    }
+
+    if (req.onDelta && res.body) {
+      return this.consumeStream(res.body, req);
     }
 
     const data = (await res.json()) as {
@@ -94,6 +106,68 @@ export class OpenAIGateway implements ModelGateway {
         outputTokens: data.usage?.output_tokens ?? 0,
       },
     };
+  }
+
+  /** Parse the Responses API SSE stream, forwarding text deltas as they land. */
+  private async consumeStream(
+    stream: ReadableStream<Uint8Array>,
+    req: ModelRequest
+  ): Promise<ModelResponse> {
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let text = "";
+    let model = req.model;
+    let usage = { inputTokens: 0, outputTokens: 0 };
+
+    const handleEvent = (payload: string) => {
+      if (payload === "[DONE]") return;
+      let event: {
+        type?: string;
+        delta?: string;
+        response?: { model?: string; usage?: { input_tokens?: number; output_tokens?: number } };
+      };
+      try {
+        event = JSON.parse(payload);
+      } catch {
+        return; // ignore malformed keep-alive frames
+      }
+      if (event.type === "response.output_text.delta" && typeof event.delta === "string") {
+        text += event.delta;
+        req.onDelta?.(event.delta);
+      } else if (event.type === "response.completed" && event.response) {
+        model = event.response.model ?? model;
+        usage = {
+          inputTokens: event.response.usage?.input_tokens ?? 0,
+          outputTokens: event.response.usage?.output_tokens ?? 0,
+        };
+      } else if (event.type === "response.failed" || event.type === "error") {
+        const err = new Error("Model provider stream failed.");
+        (err as Error & { statusCode: number }).statusCode = 502;
+        throw err;
+      }
+    };
+
+    const reader = stream.getReader();
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        // SSE frames are separated by a blank line; data lines carry JSON.
+        let sep;
+        while ((sep = buffer.indexOf("\n\n")) !== -1) {
+          const frame = buffer.slice(0, sep);
+          buffer = buffer.slice(sep + 2);
+          for (const line of frame.split("\n")) {
+            if (line.startsWith("data:")) handleEvent(line.slice(5).trim());
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+
+    return { text, model, usage };
   }
 
   async moderate(text: string): Promise<{ flagged: boolean; categories?: Record<string, boolean> }> {

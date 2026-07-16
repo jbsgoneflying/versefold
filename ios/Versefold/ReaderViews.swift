@@ -5,6 +5,7 @@ import SwiftUI
 struct ReaderView: View {
     @EnvironmentObject var scripture: ScriptureStore
     @EnvironmentObject var library: LibraryStore
+    @EnvironmentObject var studyJobs: StudyJobMonitor
 
     @AppStorage("readerTheme") private var themeRaw = ReaderTheme.ivory.rawValue
     @AppStorage("scriptureSize") private var scriptureSize = 19.0
@@ -22,6 +23,8 @@ struct ReaderView: View {
     @State private var showStudies = false
     @State private var showLibrary = false
     @State private var showReturnStudy = false
+    /// A finished background study the reader chose to open from the chip.
+    @State private var openReadyStudy: StudyJobMonitor.ReadyStudy?
     @State private var activeSheet: PassageSheet?
     /// Verse briefly emphasized after a search jump; fades back to normal.
     @State private var flashedVerse: Int?
@@ -75,6 +78,12 @@ struct ReaderView: View {
                 } else if let selection {
                     selectionBar(selection)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
+                } else if let ready = studyJobs.ready {
+                    studyReadyChip(ready)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                } else if let failure = studyJobs.failureMessage {
+                    studyFailedChip(failure)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                 } else if let ret = scripture.studyReturn {
                     studyReturnChip(ret)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -82,6 +91,8 @@ struct ReaderView: View {
             }
             .animation(.spring(duration: 0.3), value: selectedVerses)
             .animation(.spring(duration: 0.3), value: scripture.studyReturn)
+            .animation(.spring(duration: 0.3), value: studyJobs.ready)
+            .animation(.spring(duration: 0.3), value: studyJobs.failureMessage)
             .animation(.spring(duration: 0.3), value: pendingMark)
             .toolbar { if !focusMode { readerToolbar } }
             .toolbarBackground(theme.background, for: .navigationBar)
@@ -100,6 +111,12 @@ struct ReaderView: View {
             }
             .sheet(item: $activeSheet) { sheet in
                 passageSheetView(sheet)
+            }
+            .sheet(item: $openReadyStudy) { ready in
+                NavigationStack {
+                    StudyDetailView(planId: ready.planId)
+                        .toolbar { Button("Done") { openReadyStudy = nil } }
+                }
             }
             .sheet(isPresented: $showGuide, onDismiss: { hasSeenGuide = true }) {
                 GuideView()
@@ -683,6 +700,72 @@ struct ReaderView: View {
                 selectedVerses = Set(lo...hi)
             }
         }
+    }
+
+    // MARK: Study ready chip (soft alert after a background build)
+
+    private func studyReadyChip(_ ready: StudyJobMonitor.ReadyStudy) -> some View {
+        HStack(spacing: 10) {
+            Button {
+                studyJobs.dismissReady()
+                openReadyStudy = ready
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 12, weight: .semibold))
+                    Text("Your study is ready \u{00B7} Open")
+                        .font(.system(size: 13, weight: .semibold))
+                        .lineLimit(1)
+                }
+                .foregroundStyle(Brand.hunter)
+            }
+            Button {
+                // Quiet dismiss — the study is already saved under Studies.
+                studyJobs.dismissReady()
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 15))
+                    .foregroundStyle(theme.meta.opacity(0.7))
+            }
+            .accessibilityLabel("Dismiss")
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 9)
+        .background(
+            Capsule()
+                .fill(.regularMaterial)
+                .shadow(color: .black.opacity(0.12), radius: 10, y: 3)
+        )
+        .padding(.bottom, 10)
+    }
+
+    private func studyFailedChip(_ message: String) -> some View {
+        HStack(spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "exclamationmark.circle")
+                    .font(.system(size: 12, weight: .semibold))
+                Text("Your study couldn't be built")
+                    .font(.system(size: 13, weight: .semibold))
+                    .lineLimit(1)
+            }
+            .foregroundStyle(theme.text.opacity(0.8))
+            Button {
+                studyJobs.dismissFailure()
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 15))
+                    .foregroundStyle(theme.meta.opacity(0.7))
+            }
+            .accessibilityLabel("Dismiss")
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 9)
+        .background(
+            Capsule()
+                .fill(.regularMaterial)
+                .shadow(color: .black.opacity(0.12), radius: 10, y: 3)
+        )
+        .padding(.bottom, 10)
     }
 
     // MARK: Study return chip (transient breadcrumb)

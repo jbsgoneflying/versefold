@@ -4,14 +4,18 @@ import SwiftUI
 /// A personal workspace, not a catalog. No streaks anywhere.
 struct StudiesView: View {
     @EnvironmentObject var library: LibraryStore
+    @EnvironmentObject var studyJobs: StudyJobMonitor
     @Environment(\.dismiss) private var dismiss
     @State private var showBuilder = false
 
     var body: some View {
         NavigationStack {
-            Group {
+            VStack(spacing: 0) {
+                if let pending = studyJobs.pending {
+                    buildingBanner(pending)
+                }
                 if library.studies.isEmpty {
-                    emptyState
+                    emptyState.frame(maxHeight: .infinity)
                 } else {
                     List {
                         ForEach(library.studies) { plan in
@@ -43,6 +47,27 @@ struct StudiesView: View {
             .sheet(isPresented: $showBuilder) { StudyBuilderView(prefill: nil) }
             .background(Brand.ivory.ignoresSafeArea())
         }
+    }
+
+    /// A study being written on the server right now. Purely informational —
+    /// the reader is free to leave; the reader chip announces completion.
+    private func buildingBanner(_ pending: StudyJobMonitor.PendingJob) -> some View {
+        HStack(spacing: 12) {
+            ProgressView().tint(Brand.hunter)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Building \u{201C}\(pending.sourceLabel)\u{201D}")
+                    .font(.system(size: 14, weight: .semibold)).foregroundStyle(Brand.ink)
+                    .lineLimit(1)
+                Text(studyJobs.daysReady > 0
+                     ? "Day \(min(studyJobs.daysReady + 1, studyJobs.totalDays)) of \(studyJobs.totalDays) — you can keep reading meanwhile."
+                     : "Shaping the study — you can keep reading meanwhile.")
+                    .font(.system(size: 12)).foregroundStyle(Brand.stone)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Brand.parchment.opacity(0.5))
     }
 
     private var emptyState: some View {
@@ -80,8 +105,8 @@ struct StudiesView: View {
 
 struct StudyBuilderView: View {
     @EnvironmentObject var library: LibraryStore
+    @EnvironmentObject var studyJobs: StudyJobMonitor
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var client = AIClient()
 
     let prefill: VerseSelection?
 
@@ -89,11 +114,15 @@ struct StudyBuilderView: View {
     @State private var days = 7
     @State private var minutes = 15
     @State private var depth = "standard"
-    @State private var generating = false
+    /// True once THIS builder started a job — it will auto-open the study if
+    /// the reader stays, and quietly hand off to the reader's chip if not.
+    @State private var startedHere = false
     @State private var errorMessage: String?
     /// A freshly built study is pushed onto this path so it opens right
     /// away, whether the builder came from the Studies page or a verse.
     @State private var path: [UUID] = []
+
+    private var building: Bool { startedHere && studyJobs.isBuilding }
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -125,17 +154,22 @@ struct StudyBuilderView: View {
                     Button {
                         Task { await generate() }
                     } label: {
-                        if generating {
-                            HStack { ProgressView().tint(.white); Text("Preparing your study…") }
+                        if building {
+                            HStack { ProgressView().tint(.white); Text(progressLabel) }
                                 .frame(maxWidth: .infinity)
                         } else {
                             Text("Create study").frame(maxWidth: .infinity)
                         }
                     }
                     .buttonStyle(.borderedProminent).tint(Brand.hunter)
-                    .disabled(generating || (prefill == nil && theme.trimmingCharacters(in: .whitespaces).isEmpty))
+                    .disabled(building || studyJobs.isBuilding ||
+                              (prefill == nil && theme.trimmingCharacters(in: .whitespaces).isEmpty))
                 } footer: {
-                    Text("Studies are saved to your device. Pause or return anytime — there are no streaks and nothing expires.")
+                    if building {
+                        Text("You can close this and keep reading — we'll let you know the moment your study is ready.")
+                    } else {
+                        Text("Studies are saved to your device. Pause or return anytime — there are no streaks and nothing expires.")
+                    }
                 }
             }
             .navigationTitle("New study")
@@ -150,41 +184,42 @@ struct StudyBuilderView: View {
                         }
                     }
             }
+            // The reader stayed: open the finished study right here and
+            // consume the ready signal so the reader's chip stays quiet.
+            .onChange(of: studyJobs.ready) { _, ready in
+                guard startedHere, let ready else { return }
+                studyJobs.dismissReady()
+                path = [ready.planId]
+            }
+            .onChange(of: studyJobs.failureMessage) { _, failure in
+                guard startedHere, let failure else { return }
+                studyJobs.dismissFailure()
+                errorMessage = failure
+                startedHere = false
+            }
         }
     }
 
+    private var progressLabel: String {
+        if studyJobs.totalDays > 0 && studyJobs.daysReady > 0 {
+            return "Preparing day \(min(studyJobs.daysReady + 1, studyJobs.totalDays)) of \(studyJobs.totalDays)…"
+        }
+        return "Shaping your study…"
+    }
+
     private func generate() async {
-        generating = true
         errorMessage = nil
         do {
-            let res = try await client.generateStudy(
+            try await studyJobs.start(
                 source: prefill?.passageId ?? theme,
                 sourceType: prefill != nil ? "passage" : "theme",
-                days: days, minutesPerDay: minutes, depth: depth, lens: nil
+                days: days, minutesPerDay: minutes, depth: depth,
+                sourceLabel: prefill?.reference ?? theme
             )
-            let plan = StudyPlan(
-                id: UUID(),
-                title: res.plan.title,
-                description: res.plan.description,
-                days: res.plan.days.map {
-                    StudyDay(
-                        dayNumber: $0.dayNumber, title: $0.title,
-                        primaryReading: $0.primaryReading, supportingReadings: $0.supportingReadings,
-                        context: $0.context, centralTheme: $0.centralTheme,
-                        reflectionQuestions: $0.reflectionQuestions, prayerPrompt: $0.prayerPrompt,
-                        practicalResponse: $0.practicalResponse, personalNote: "", completed: false
-                    )
-                },
-                state: .active, createdAt: Date(),
-                promptVersion: "study-v1", modelVersion: "server"
-            )
-            library.addStudy(plan)
-            // Open the new study in place — seeing it beats a list row.
-            path = [plan.id]
+            startedHere = true
         } catch {
             errorMessage = error.localizedDescription
         }
-        generating = false
     }
 }
 

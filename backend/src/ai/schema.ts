@@ -119,6 +119,77 @@ export interface StudyPlan {
   days: StudyDay[];
 }
 
+/**
+ * Split-generation schemas: one fast outline call shapes the whole arc, then
+ * each day is filled in parallel. Wall time ~= outline + ONE day instead of
+ * one giant sequential plan generation.
+ */
+export interface StudyOutlineDay {
+  dayNumber: number;
+  title: string;
+  primaryReading: string;
+  centralTheme: string;
+}
+
+export interface StudyOutline {
+  title: string;
+  description: string;
+  days: StudyOutlineDay[];
+}
+
+export const STUDY_OUTLINE_SCHEMA = {
+  name: "versefold_study_outline",
+  strict: true,
+  schema: {
+    type: "object",
+    additionalProperties: false,
+    required: ["title", "description", "days"],
+    properties: {
+      title: { type: "string" },
+      description: { type: "string" },
+      days: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["dayNumber", "title", "primaryReading", "centralTheme"],
+          properties: {
+            dayNumber: { type: "integer" },
+            title: { type: "string" },
+            primaryReading: { type: "string" },
+            centralTheme: { type: "string" },
+          },
+        },
+      },
+    },
+  },
+} as const;
+
+export interface StudyDayFill {
+  supportingReadings: string[];
+  context: string;
+  reflectionQuestions: string[];
+  prayerPrompt: string;
+  practicalResponse: string | null;
+}
+
+export const STUDY_DAY_SCHEMA = {
+  name: "versefold_study_day",
+  strict: true,
+  schema: {
+    type: "object",
+    additionalProperties: false,
+    required: ["supportingReadings", "context", "reflectionQuestions", "prayerPrompt", "practicalResponse"],
+    properties: {
+      supportingReadings: { type: "array", maxItems: 4, items: { type: "string" } },
+      context: { type: "string" },
+      reflectionQuestions: { type: "array", minItems: 2, maxItems: 4, items: { type: "string" } },
+      prayerPrompt: { type: "string" },
+      practicalResponse: { type: ["string", "null"] },
+    },
+  },
+} as const;
+
 export const STUDY_SCHEMA = {
   name: "versefold_study_plan",
   strict: true,

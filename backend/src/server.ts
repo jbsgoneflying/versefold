@@ -3,6 +3,7 @@ import { config } from "./config.js";
 import { publicTranslationConfig, assertRight, RightsError } from "./rights.js";
 import { getPassage, getChapterVerses, cacheStats } from "./scripture.js";
 import { explainPassage } from "./ai/explain.js";
+import { partialExplanation } from "./ai/partial.js";
 import { generateStudy, type StudyRequest } from "./ai/study.js";
 import { craftConfessions } from "./ai/card.js";
 import { searchByMeaning, semanticIndexReady } from "./semantic.js";
@@ -141,6 +142,88 @@ export function buildServer() {
     };
   });
 
+  // Streaming unfold: same pipeline and same final payload as /v1/ai/explain,
+  // but delivered over SSE — `partial` events carry readable text while the
+  // model writes, and the terminal `complete` event carries the full validated
+  // response. Cache hits emit `complete` immediately.
+  app.post<{
+    Body: {
+      translation: string;
+      passageId: string;
+      lens?: string;
+      question?: string;
+      depth?: "standard" | "deeper";
+      save?: boolean;
+    };
+  }>("/v1/ai/explain/stream", async (req, reply) => {
+    const deviceId = deviceOf(req);
+    enforceQuota(deviceId);
+
+    const lens = (req.body.lens ?? "plain_language") as Lens;
+    if (!LENSES.includes(lens)) {
+      return reply.code(400).send({ error: `Unknown lens '${req.body.lens}'` });
+    }
+
+    reply.hijack();
+    reply.raw.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no", // nginx: do not buffer this response
+    });
+    const send = (event: string, data: unknown) => {
+      reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    };
+
+    let accumulated = "";
+    let lastEmit = 0;
+    try {
+      const result = await explainPassage({
+        translationKey: req.body.translation,
+        passageId: req.body.passageId,
+        lens,
+        userQuestion: req.body.question,
+        depth: req.body.depth,
+        onDelta: (delta) => {
+          accumulated += delta;
+          const now = Date.now();
+          if (now - lastEmit < 250) return; // ~4 partials/sec is plenty for reading
+          lastEmit = now;
+          const partial = partialExplanation(accumulated);
+          if (partial) send("partial", partial);
+        },
+      });
+
+      store.recordUsage(deviceId, result.usage.inputTokens, result.usage.outputTokens);
+
+      let artifactId: string | undefined;
+      if (req.body.save) {
+        artifactId = store.saveArtifact({
+          deviceId,
+          type: req.body.question ? "ask" : "explanation",
+          promptVersion: result.promptVersion,
+          modelVersion: result.modelVersion,
+          payload: { explanation: result.explanation, passage: result.passage, lens },
+        }).id;
+      }
+
+      send("complete", {
+        passage: result.passage,
+        explanation: result.explanation,
+        basis: { references: result.explanation.references, dropped: result.droppedReferences },
+        grounding: result.groundedOnText ? "passage_text" : "reference_only_pd_fallback",
+        promptVersion: result.promptVersion,
+        modelVersion: result.modelVersion,
+        artifactId,
+      });
+    } catch (err) {
+      app.log.error({ err }, "streaming explain failed");
+      send("error", { message: err instanceof Error ? err.message : "Unfold failed. Please try again." });
+    } finally {
+      reply.raw.end();
+    }
+  });
+
   // --- AI: guided study ----------------------------------------------------------
   app.post<{ Body: StudyRequest }>("/v1/ai/study", async (req) => {
     const deviceId = deviceOf(req);
@@ -166,6 +249,71 @@ export function buildServer() {
     });
 
     return { artifactId: artifact.id, plan: result.plan, dropped: result.droppedReferences };
+  });
+
+  // Background study builds: POST answers immediately with a job id so the
+  // reader can keep reading while the study is written; the app polls the GET
+  // until the plan is ready (or the build fails).
+  app.post<{ Body: StudyRequest }>("/v1/ai/study/jobs", async (req, reply) => {
+    const deviceId = deviceOf(req);
+    enforceQuota(deviceId);
+
+    const { days, minutesPerDay } = req.body;
+    if (![3, 7, 14].includes(days) || minutesPerDay < 5 || minutesPerDay > 120) {
+      return reply.code(400).send({ error: "Study must be 3, 7, or 14 days with 5-120 minutes per day." });
+    }
+
+    const job = store.createStudyJob(deviceId, days);
+    const body = req.body;
+
+    void (async () => {
+      try {
+        const result = await generateStudy(body, (daysReady, totalDays) => {
+          store.updateStudyJob(job.id, { daysReady, totalDays });
+        });
+        store.recordUsage(deviceId, result.usage.inputTokens, result.usage.outputTokens);
+        const artifact = store.saveArtifact({
+          deviceId,
+          type: "study",
+          promptVersion: result.promptVersion,
+          modelVersion: result.modelVersion,
+          payload: { plan: result.plan, request: body },
+        });
+        store.updateStudyJob(job.id, {
+          status: "complete",
+          daysReady: result.plan.days.length,
+          totalDays: result.plan.days.length,
+          artifactId: artifact.id,
+          plan: result.plan,
+          dropped: result.droppedReferences,
+        });
+      } catch (err) {
+        app.log.error({ err, jobId: job.id }, "study job failed");
+        store.updateStudyJob(job.id, {
+          status: "failed",
+          error: err instanceof Error ? err.message : "Study generation failed. Please try again.",
+        });
+      }
+    })();
+
+    return reply.code(202).send({ jobId: job.id, totalDays: days });
+  });
+
+  app.get<{ Params: { id: string } }>("/v1/ai/study/jobs/:id", async (req, reply) => {
+    const job = store.getStudyJob(req.params.id);
+    if (!job || job.deviceId !== deviceOf(req)) {
+      return reply.code(404).send({ error: "Study job not found." });
+    }
+    return {
+      jobId: job.id,
+      status: job.status,
+      daysReady: job.daysReady,
+      totalDays: job.totalDays,
+      artifactId: job.artifactId,
+      plan: job.plan,
+      dropped: job.dropped,
+      error: job.error,
+    };
   });
 
   // --- semantic search (by meaning, over PD KJV embeddings) -----------------------
