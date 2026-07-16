@@ -72,6 +72,49 @@ final class PenAndScrollTests: XCTestCase {
         assertScrolls(app, anchor: verse1, "scroll must survive an armed-but-unused pen")
     }
 
+    /// Chapter swipes must tolerate real-world diagonal drift (people swipe
+    /// sloppily), while vertical reading scrolls must never flip a chapter.
+    func testDiagonalSwipeFlipsChapter() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-skipGuide"]
+        app.launch()
+
+        let verse1 = verseRow(app, 1)
+        XCTAssertTrue(verse1.waitForExistence(timeout: 10))
+        // (.textCase(.uppercase) uppercases the accessibility label too.)
+        func chapterHeader(_ n: Int) -> XCUIElement {
+            app.staticTexts.matching(NSPredicate(format: "label ==[c] %@", "Chapter \(n)")).firstMatch
+        }
+        // The reader resumes wherever it was last left — read the chapter
+        // number off the header instead of assuming chapter 1.
+        let anyHeader = app.staticTexts.matching(
+            NSPredicate(format: "label BEGINSWITH[c] %@", "Chapter ")
+        ).firstMatch
+        XCTAssertTrue(anyHeader.waitForExistence(timeout: 5))
+        guard let current = Int(anyHeader.label.split(separator: " ").last ?? "") else {
+            return XCTFail("could not read the current chapter number")
+        }
+
+        // A big-but-sloppy swipe left (drifting downward) must flip forward.
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.45))
+        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.25, dy: 0.55))
+        start.press(forDuration: 0.05, thenDragTo: end)
+        XCTAssertTrue(chapterHeader(current + 1).waitForExistence(timeout: 5),
+                      "a diagonal-drift swipe left should reach the next chapter")
+
+        // A vertical reading scroll must never flip.
+        app.swipeUp()
+        XCTAssertFalse(chapterHeader(current + 2).waitForExistence(timeout: 2),
+                       "scrolling must not flip chapters")
+
+        // And a sloppy swipe right (drifting upward) returns to where we began.
+        let start2 = app.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.55))
+        let end2 = app.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.45))
+        start2.press(forDuration: 0.05, thenDragTo: end2)
+        XCTAssertTrue(chapterHeader(current).waitForExistence(timeout: 5),
+                      "a diagonal-drift swipe right should return to the starting chapter")
+    }
+
     /// The margin-note loop: add a note via the selection bar, see the
     /// hand-drawn mark appear in the gutter, open it from the mark, delete
     /// it, and watch the mark disappear.

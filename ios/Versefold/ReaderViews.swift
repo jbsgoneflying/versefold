@@ -176,11 +176,25 @@ struct ReaderView: View {
                     chapter: scripture.location.chapter
                 )
             }
-            .gesture(
-                DragGesture(minimumDistance: 60).onEnded { value in
+            // simultaneousGesture, not .gesture: a plain gesture must WIN
+            // arbitration against the scroll view's pan, so any swipe that
+            // starts with a little vertical drift gets claimed as a scroll
+            // and the flip never fires (real users swipe diagonally). This
+            // observes every drag and decides at finger-lift by shape.
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 30).onEnded { value in
                     guard markingVerse == nil else { return } // pen strokes never flip chapters
-                    if value.translation.width < -60 { scripture.goToNextChapter() }
-                    if value.translation.width > 60 { scripture.goToPreviousChapter() }
+                    let w = value.translation.width
+                    let h = value.translation.height
+                    // Chapter-flip shaped: clearly horizontal (drift allowed,
+                    // up to ~40° off-axis) and either far enough or a real
+                    // flick. Reading scrolls are strongly vertical and can
+                    // never pass the dominance test.
+                    let dominant = abs(w) > abs(h) * 1.2
+                    let farEnough = abs(w) > 60
+                    let flicked = abs(value.predictedEndTranslation.width) > 160 && abs(w) > 40
+                    guard dominant, farEnough || flicked else { return }
+                    if w < 0 { scripture.goToNextChapter() } else { scripture.goToPreviousChapter() }
                 }
             )
             // A new book/chapter always starts at verse 1, not the previous
